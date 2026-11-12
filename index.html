@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNO! Arena — Multiplayer Online & Party Canvas Edition</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0b0f19;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: #f8fafc;
+        }
+        .font-display {
+            font-family: 'Fredoka', sans-serif;
+        }
+        /* Card 3D & Interactive Styling */
+        .uno-card-dom {
+            position: relative;
+            width: 82px;
+            height: 124px;
+            border-radius: 14px;
+            border: 4px solid #ffffff;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.48), inset 0 0 0 2px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
+            cursor: pointer;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        @media (min-width: 640px) {
+            .uno-card-dom {
+                width: 96px;
+                height: 144px;
+                border-radius: 16px;
+            }
+        }
+        .uno-card-dom.playable {
+            transform: translateY(-12px);
+            box-shadow: 0 14px 26px rgba(0, 0, 0, 0.65), 0 0 16px rgba(250, 204, 21, 0.75);
+            border-color: #fef08a;
+        }
+        .uno-card-dom.playable:hover {
+            transform: translateY(-26px) scale(1.08);
+            z-index: 40 !important;
+            box-shadow: 0 20px 32px rgba(0, 0, 0, 0.8), 0 0 24px rgba(250, 204, 21, 0.95);
+        }
+        .uno-card-dom.unplayable {
+            filter: brightness(0.55) saturate(0.75);
+            cursor: not-allowed;
+            transform: translateY(4px) scale(0.96);
+        }
+        .uno-card-dom.unplayable:hover {
+            transform: translateY(0px) scale(0.98);
+        }
+        .card-oval {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 82%;
+            height: 68%;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) rotate(-28deg);
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .bg-uno-red { background: linear-gradient(145deg, #ef4444 0%, #b91c1c 100%); }
+        .bg-uno-yellow { background: linear-gradient(145deg, #facc15 0%, #ca8a04 100%); }
+        .bg-uno-green { background: linear-gradient(145deg, #22c55e 0%, #15803d 100%); }
+        .bg-uno-blue { background: linear-gradient(145deg, #3b82f6 0%, #1d4ed8 100%); }
+        .bg-uno-wild {
+            background: conic-gradient(from 45deg, #ef4444 0deg 90deg, #3b82f6 90deg 180deg, #22c55e 180deg 270deg, #facc15 270deg 360deg);
+        }
+        .text-uno-red { color: #dc2626; }
+        .text-uno-yellow { color: #ca8a04; }
+        .text-uno-green { color: #16a34a; }
+        .text-uno-blue { color: #2563eb; }
+        .text-uno-wild { color: #1e293b; }
+
+        /* Hand Scrollbar */
+        .hand-scroll::-webkit-scrollbar {
+            height: 6px;
+        }
+        .hand-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 9999px;
+        }
+        .hand-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.4);
+            border-radius: 9999px;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            50% { transform: scale(1.07); box-shadow: 0 0 24px 8px rgba(239, 68, 68, 0.85); }
+        }
+        .uno-shout-pulse {
+            animation: pulseGlow 1.1s infinite ease-in-out;
+        }
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: floatSlow 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="relative w-full h-full select-none overflow-hidden">
+
+    <!-- FULLSCREEN INTERACTIVE HTML5 CANVAS (Arena Table, Direction Ring, Deck/Discard, Opponents, Flying Cards & Particles) -->
+    <canvas id="unoCanvas" class="absolute inset-0 w-full h-full z-0 block"></canvas>
+
+    <!-- TOP NAVIGATION / HUD BAR -->
+    <header class="relative z-20 flex items-center justify-between px-3 sm:px-6 py-2.5 bg-slate-900/75 backdrop-blur-md border-b border-white/10">
+        <div class="flex items-center gap-2.5">
+            <button id="btnBackHome" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold border border-white/10 transition active:scale-95">
+                <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                <span>Menu</span>
+            </button>
+            <div class="flex items-center gap-2">
+                <span class="font-display text-lg sm:text-xl font-bold tracking-wider bg-gradient-to-r from-red-500 via-yellow-400 to-green-400 bg-clip-text text-transparent">UNO! ARENA</span>
+                <span id="badgeGameMode" class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">Lobi</span>
+            </div>
+        </div>
+
+        <!-- Center Status Pill -->
+        <div id="hudCenterStatus" class="hidden md:flex items-center gap-3 px-4 py-1 rounded-full bg-slate-800/90 border border-white/10 text-xs font-medium">
+            <span id="hudTurnText" class="text-amber-300 font-semibold">Menunggu Permainan...</span>
+            <span class="text-slate-600">•</span>
+            <span id="hudStackText" class="text-rose-400 font-bold hidden">Penalti: +0</span>
+            <span id="hudDeckCount" class="text-slate-300">Dek: 108</span>
+        </div>
+
+        <!-- Right Quick Controls -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <!-- Room Code Pill when Online -->
+            <button id="btnCopyRoomTop" class="hidden items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-xs font-bold transition" title="Salin Kode Room">
+                <span id="topRoomCodeLabel">ROOM: ----</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            </button>
+
+            <!-- Quick Emoji Chat Trigger -->
+            <div class="relative">
+                <button id="btnToggleEmoji" class="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-white/10 text-amber-300 transition active:scale-95" title="Kirim Reaksi Cepat">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+                <div id="emojiPopover" class="hidden absolute right-0 mt-2 p-2 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-white/15 shadow-2xl flex items-center gap-1.5 z-50">
+                    <button data-emoji="🔥" class="emoji-btn text-xl hover:scale-125 transition p-1">🔥</button>
+                    <button data-emoji="😂" class="emoji-btn text-xl hover:scale-125 transition p-1">😂</button>
+                    <button data-emoji="😱" class="emoji-btn text-xl hover:scale-125 transition p-1">😱</button>
+                    <button data-emoji="😎" class="emoji-btn text-xl hover:scale-125 transition p-1">😎</button>
+                    <button data-emoji="😭" class="emoji-btn text-xl hover:scale-125 transition p-1">😭</button>
+                    <button data-emoji="⚡" class="emoji-btn text-xl hover:scale-125 transition p-1">⚡</button>
+                </div>
+            </div>
+
+            <!-- Sound Toggle -->
+            <button id="btnToggleSound" class="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-white/10 text-slate-200 transition active:scale-95" title="Suara Efek">
+                <svg id="iconSoundOn" class="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                <svg id="iconSoundOff" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+            </button>
+
+            <!-- Rules & Audit Help Modal Button -->
+            <button id="btnOpenRules" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-white/10 text-slate-200 text-xs sm:text-sm font-semibold transition active:scale-95">
+                Aturan
+            </button>
+        </div>
+    </header>
+
+    <!-- TOAST / ACTION BANNER OVERLAY -->
+    <div id="toastContainer" class="fixed top-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center gap-1.5 w-full max-w-md px-4"></div>
+
+    <!-- ACTIVE GAMEPLAY HUD (Bottom Player Hand + Action Controls) -->
+    <div id="gameplayHud" class="hidden absolute inset-x-0 bottom-0 z-20 flex flex-col justify-end pointer-events-none pb-2 sm:pb-4">
+        
+        <!-- Mobile Turn & Penalty Info Bar -->
+        <div class="flex items-center justify-between px-4 mb-2 pointer-events-auto">
+            <div class="flex items-center gap-2 bg-slate-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 shadow-lg">
+                <span id="activeColorDot" class="w-3.5 h-3.5 rounded-full bg-red-500 ring-2 ring-white/50"></span>
+                <span id="mobileTurnBanner" class="text-xs sm:text-sm font-bold text-white">Giliranmu!</span>
+                <span id="penaltyBadge" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white text-xs font-extrabold animate-bounce">+2</span>
+            </div>
+
+            <!-- Action Buttons (Draw / Pass / UNO! / Challenge) -->
+            <div class="flex items-center gap-2">
+                <!-- Call UNO! Button -->
+                <button id="btnCallUno" class="hidden px-4 py-2 rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-yellow-500 text-white font-display font-bold text-sm sm:text-base tracking-wide shadow-xl uno-shout-pulse transition active:scale-95">
+                    TERIAK UNO! 🔔
+                </button>
+
+                <!-- Catch Opponent Who Forgot UNO! -->
+                <button id="btnCatchUno" class="hidden px-3.5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-bold text-xs sm:text-sm shadow-xl transition active:scale-95">
+                    LUPA UNO! (+2) 🚨
+                </button>
+
+                <!-- Draw Card Button -->
+                <button id="btnDrawCard" class="px-3.5 sm:px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm border border-sky-300/30 shadow-lg transition active:scale-95 flex items-center gap-1.5">
+                    <span>Ambil Kartu</span>
+                </button>
+
+                <!-- Keep Card / Pass Turn (Shown after drawing 1 playable card) -->
+                <button id="btnPassTurn" class="hidden px-3.5 sm:px-4 py-2 rounded-2xl bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold text-xs sm:text-sm border border-white/15 shadow-lg transition active:scale-95">
+                    Simpan & Lewati
+                </button>
+            </div>
+        </div>
+
+        <!-- Local Player Hand Info & Sort Controls -->
+        <div class="px-4 mb-1 flex items-center justify-between pointer-events-auto">
+            <div class="flex items-center gap-2">
+                <span id="localPlayerNameLabel" class="text-xs sm:text-sm font-bold text-slate-200 bg-slate-900/75 px-3 py-1 rounded-xl border border-white/10">Kartumu (7)</span>
+                <span id="playableHintBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Pilih kartu menyala</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button id="btnSortColor" class="px-2.5 py-1 rounded-lg bg-slate-800/85 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold border border-white/10 transition">Urut Warna</button>
+                <button id="btnSortValue" class="px-2.5 py-1 rounded-lg bg-slate-800/85 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold border border-white/10 transition">Urut Angka</button>
+            </div>
+        </div>
+
+        <!-- Interactive Fanned Card Tray -->
+        <div id="playerHandContainer" class="pointer-events-auto w-full overflow-x-auto hand-scroll px-4 pt-7 pb-2 flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 min-h-[155px] sm:min-h-[175px]">
+            <!-- Cards dynamically injected here -->
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 1: MAIN LOBBY & MULTIPLAYER SETUP
+         ========================================== -->
+    <div id="lobbyModal" class="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+        <div class="w-full max-w-4xl bg-slate-900/95 border border-white/15 rounded-3xl shadow-2xl overflow-hidden my-auto">
+            
+            <!-- Hero Header -->
+            <div class="relative px-6 py-5 sm:px-8 sm:py-6 bg-gradient-to-r from-rose-600/30 via-amber-500/20 to-blue-600/30 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold mb-2">
+                        <span>✨ 108 Kartu Resmi UNO</span>
+                        <span>•</span>
+                        <span>Siap GitHub Pages</span>
+                    </div>
+                    <h1 class="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight">UNO! PARTY ARENA</h1>
+                    <p class="text-slate-300 text-xs sm:text-sm mt-0.5">Main bareng teman via Kode Room Online (WebRTC), Gantian HP (Pass & Play), atau lawan Bot AI Pintar.</p>
+                </div>
+                <div class="flex items-center gap-2 self-start sm:self-center">
+                    <div class="w-11 h-16 rounded-xl bg-uno-red border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xl -rotate-12">7</div>
+                    <div class="w-11 h-16 rounded-xl bg-uno-blue border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xl rotate-6 -ml-3">+2</div>
+                    <div class="w-11 h-16 rounded-xl bg-uno-wild border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xs rotate-12 -ml-3">+4</div>
+                </div>
+            </div>
+
+            <!-- Lobby Tabs & Configuration -->
+            <div class="p-5 sm:p-7 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Left Column: Player Profile & Mode Tabs (7 cols) -->
+                <div class="lg:col-span-7 flex flex-col gap-5">
+                    
+                    <!-- Player Name Input -->
+                    <div class="bg-slate-800/70 p-4 rounded-2xl border border-white/10">
+                        <label for="inputPlayerName" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Nama Panggilanmu</label>
+                        <div class="flex items-center gap-2">
+                            <input id="inputPlayerName" type="text" maxlength="14" value="Kapten UNO" placeholder="Masukkan namamu..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-semibold text-sm focus:outline-none focus:border-amber-400">
+                            <button id="btnRandomName" class="px-3 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-xs font-bold text-slate-200 shrink-0 transition" title="Nama Acak">🎲 Acak</button>
+                        </div>
+                    </div>
+
+                    <!-- Mode Selector Tabs -->
+                    <div>
+                        <div class="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-slate-950/90 border border-white/10 mb-4">
+                            <button id="tabModeBot" data-mode="bot" class="mode-tab py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md">
+                                🤖 Lawan Bot AI
+                            </button>
+                            <button id="tabModePass" data-mode="pass" class="mode-tab py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:text-white">
+                                📱 Pass & Play
+                            </button>
+                            <button id="tabModeOnline" data-mode="online" class="mode-tab py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:text-white">
+                                🌐 Online Room
+                            </button>
+                        </div>
+
+                        <!-- TAB 1: VS AI BOTS PANEL -->
+                        <div id="panelModeBot" class="bg-slate-800/60 p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-white text-sm sm:text-base">Main Instan Lawan Bot Pintar</h3>
+                                    <p class="text-xs text-slate-400">Cocok buat latihan strategi atau main cepat kapan saja.</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold">2 - 4 Pemain</span>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-300 mb-2">Jumlah Total Pemain di Meja:</label>
+                                <div class="grid grid-cols-3 gap-2.5">
+                                    <button data-bot-count="2" class="bot-count-btn py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300 hover:border-amber-400 transition">2 Pemain (Duel)</button>
+                                    <button data-bot-count="3" class="bot-count-btn py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300 hover:border-amber-400 transition">3 Pemain</button>
+                                    <button data-bot-count="4" class="bot-count-btn py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-amber-400 bg-amber-500/20 text-amber-300 transition">4 Pemain (Seru!)</button>
+                                </div>
+                            </div>
+
+                            <button id="btnStartBotGame" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:brightness-110 text-slate-950 font-display font-bold text-base sm:text-lg shadow-xl transition active:scale-98">
+                                🚀 MULAI MAIN SEKARANG
+                            </button>
+                        </div>
+
+                        <!-- TAB 2: PASS & PLAY (HOTSEAT BARENG TEMAN 1 DEVICE) -->
+                        <div id="panelModePass" class="hidden bg-slate-800/60 p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-white text-sm sm:text-base">Main Bareng 1 HP / Laptop (Pass & Play)</h3>
+                                    <p class="text-xs text-slate-400">Ada layar pelindung privasi otomatis saat ganti giliran temanmu!</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">2 - 4 Teman</span>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-300 mb-2">Jumlah Teman yang Ikut Main:</label>
+                                <div class="grid grid-cols-3 gap-2.5 mb-3">
+                                    <button data-pass-count="2" class="pass-count-btn py-2 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300">2 Orang</button>
+                                    <button data-pass-count="3" class="pass-count-btn py-2 rounded-xl font-bold text-xs sm:text-sm border border-emerald-400 bg-emerald-500/20 text-emerald-300">3 Orang</button>
+                                    <button data-pass-count="4" class="pass-count-btn py-2 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300">4 Orang</button>
+                                </div>
+                                <div id="passPlayerInputs" class="grid grid-cols-2 gap-2">
+                                    <input type="text" id="passName0" value="Pemain 1" maxlength="12" class="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-semibold text-white" placeholder="Nama Pemain 1">
+                                    <input type="text" id="passName1" value="Pemain 2" maxlength="12" class="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-semibold text-white" placeholder="Nama Pemain 2">
+                                    <input type="text" id="passName2" value="Pemain 3" maxlength="12" class="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-semibold text-white" placeholder="Nama Pemain 3">
+                                    <input type="text" id="passName3" value="Pemain 4" maxlength="12" class="hidden px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-semibold text-white" placeholder="Nama Pemain 4">
+                                </div>
+                            </div>
+
+                            <button id="btnStartPassGame" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 hover:brightness-110 text-slate-950 font-display font-bold text-base sm:text-lg shadow-xl transition active:scale-98">
+                                🎮 MULAI PASS & PLAY
+                            </button>
+                        </div>
+
+                        <!-- TAB 3: ONLINE MULTIPLAYER (P2P ROOM SHARE LINK/CODE) -->
+                        <div id="panelModeOnline" class="hidden bg-slate-800/60 p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-bold text-white text-sm sm:text-base">Mabar Online Lintas HP / Laptop (Tanpa Server)</h3>
+                                    <p class="text-xs text-slate-400">Buat Room lalu bagikan Kode atau Link GitHub Pages-mu ke grup WA/Discord teman!</p>
+                                </div>
+                                <span id="onlineStatusBadge" class="px-2.5 py-1 rounded-full bg-sky-500/20 text-sky-300 text-xs font-bold">Siap Konek</span>
+                            </div>
+
+                            <!-- Subview A: Create or Join Choice -->
+                            <div id="onlineStepSelect" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col justify-between gap-3">
+                                    <div>
+                                        <div class="text-xs font-bold text-amber-400 uppercase">Host Room Baru</div>
+                                        <p class="text-xs text-slate-400 mt-1">Buat kode room 5-digit, ajak 1-3 temanmu masuk, dan tambah Bot jika kurang orang.</p>
+                                    </div>
+                                    <button id="btnCreateRoom" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm transition">
+                                        + Buat Room Baru
+                                    </button>
+                                </div>
+
+                                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 flex flex-col justify-between gap-3">
+                                    <div>
+                                        <div class="text-xs font-bold text-sky-400 uppercase">Gabung Room Teman</div>
+                                        <p class="text-xs text-slate-400 mt-1">Masukkan kode room dari temanmu:</p>
+                                        <input id="inputJoinRoomCode" type="text" maxlength="10" placeholder="Contoh: UNO88" class="mt-2 w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/15 text-white font-mono font-bold text-sm uppercase tracking-widest focus:outline-none focus:border-sky-400">
+                                    </div>
+                                    <button id="btnJoinRoom" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs sm:text-sm transition">
+                                        Gabung Room →
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Subview B: Active Waiting Room Lobby -->
+                            <div id="onlineWaitingRoom" class="hidden space-y-3 bg-slate-900/95 p-4 rounded-2xl border border-sky-500/30">
+                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                                    <div>
+                                        <span class="text-[11px] text-slate-400 block">KODE ROOM MABAR:</span>
+                                        <span id="lobbyRoomCodeDisplay" class="font-mono font-extrabold text-xl sm:text-2xl text-amber-300 tracking-widest">-----</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button id="btnCopyRoomCode" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-white/10 transition">📋 Salin Kode</button>
+                                        <button id="btnCopyInviteLink" class="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 text-xs font-bold text-emerald-200 border border-emerald-400/30 transition">🔗 Salin Link Invite</button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="text-xs font-bold text-slate-300 mb-2">Daftar Pemain di Room (<span id="lobbyPlayerCount">1</span>/4):</div>
+                                    <div id="lobbyPlayerList" class="grid grid-cols-2 gap-2"></div>
+                                </div>
+
+                                <div id="hostRoomControls" class="flex flex-col sm:flex-row items-center gap-2 pt-2">
+                                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                                        <input type="checkbox" id="chkFillBotsOnline" checked class="rounded text-amber-500 focus:ring-0">
+                                        <span>Isi slot kosong dengan Bot AI (min. 2 pemain)</span>
+                                    </label>
+                                    <button id="btnStartOnlineMatch" class="w-full sm:w-auto sm:ml-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-green-500 text-slate-950 font-display font-bold text-sm shadow-lg transition">
+                                        MULAI MATCH ONLINE 🚀
+                                    </button>
+                                </div>
+                                <div id="clientWaitingNotice" class="hidden text-center py-2 text-xs font-semibold text-amber-300 animate-pulse">
+                                    Menunggu Host memulai permainan...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: House Rules & Quick Guide (5 cols) -->
+                <div class="lg:col-span-5 flex flex-col justify-between bg-slate-800/50 p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
+                            <h3 class="font-display font-bold text-base text-white">⚙️ Aturan Meja (House Rules)</h3>
+                            <span class="text-[11px] font-semibold text-emerald-400">100% Akurat</span>
+                        </div>
+
+                        <!-- Rule 1: Stacking +2 / +4 -->
+                        <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-white/10 cursor-pointer hover:border-white/20 transition">
+                            <div>
+                                <div class="text-xs sm:text-sm font-bold text-white">Tumpuk Penalti (Stacking +2 / +4)</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Balas serangan +2 dengan +2 (atau +4 dengan +4) agar penalti diteruskan ke pemain berikutnya!</div>
+                            </div>
+                            <input id="ruleStacking" type="checkbox" checked class="mt-1 w-4 h-4 accent-amber-400 rounded cursor-pointer">
+                        </label>
+
+                        <!-- Rule 2: 2-Player Skip Behavior -->
+                        <div class="p-3 rounded-xl bg-slate-900/80 border border-white/10">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs sm:text-sm font-bold text-white">Aturan Resmi Duel 2 Pemain</span>
+                                <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">Aktif Otomatis</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Saat tinggal 2 pemain, kartu <b>Reverse (Putar Balik)</b> otomatis berfungsi seperti <b>Skip</b> (giliran langsung kembali padamu).</p>
+                        </div>
+
+                        <!-- Rule 3: UNO Call Penalty -->
+                        <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-white/10 cursor-pointer hover:border-white/20 transition">
+                            <div>
+                                <div class="text-xs sm:text-sm font-bold text-white">Wajib Teriak "UNO!" (+2 Penalti)</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Saat kartu tersisa 1, wajib tekan tombol <b>TERIAK UNO!</b> sebelum ditegur lawan!</div>
+                            </div>
+                            <input id="ruleUnoPenalty" type="checkbox" checked class="mt-1 w-4 h-4 accent-amber-400 rounded cursor-pointer">
+                        </label>
+                    </div>
+
+                    <!-- Mini Card Legend -->
+                    <div class="p-3.5 rounded-xl bg-slate-950/80 border border-white/10 space-y-2">
+                        <div class="text-xs font-bold text-amber-300">💡 Tips Cepat Bermain & Share GitHub:</div>
+                        <ul class="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
+                            <li>Kartu yang <b>menyala naik</b> artinya sah dimainkan.</li>
+                            <li>Klik dek tengah atau tombol <b>Ambil Kartu</b> jika tidak punya kartu cocok.</li>
+                            <li>Upload file <code>index.html</code> ini ke GitHub Pages untuk dimainkan bareng teman!</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 2: WILD COLOR PICKER
+         ========================================== -->
+    <div id="wildModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="w-full max-w-sm bg-slate-900 border border-white/20 rounded-3xl p-6 text-center shadow-2xl animate-float">
+            <h2 class="font-display text-2xl font-bold text-white mb-1">Pilih Warna Aktif! 🎨</h2>
+            <p class="text-xs text-slate-400 mb-5">Kartu Wild dimainkan — tentukan warna untuk giliran berikutnya:</p>
+            <div class="grid grid-cols-2 gap-3.5">
+                <button data-wild-color="red" class="wild-color-btn py-5 rounded-2xl bg-uno-red border-2 border-white font-display font-bold text-lg text-white shadow-lg hover:scale-105 transition active:scale-95">
+                    🔴 MERAH
+                </button>
+                <button data-wild-color="yellow" class="wild-color-btn py-5 rounded-2xl bg-uno-yellow border-2 border-white font-display font-bold text-lg text-slate-950 shadow-lg hover:scale-105 transition active:scale-95">
+                    🟡 KUNING
+                </button>
+                <button data-wild-color="green" class="wild-color-btn py-5 rounded-2xl bg-uno-green border-2 border-white font-display font-bold text-lg text-white shadow-lg hover:scale-105 transition active:scale-95">
+                    🟢 HIJAU
+                </button>
+                <button data-wild-color="blue" class="wild-color-btn py-5 rounded-2xl bg-uno-blue border-2 border-white font-display font-bold text-lg text-white shadow-lg hover:scale-105 transition active:scale-95">
+                    🔵 BIRU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 3: PASS & PLAY PRIVACY CURTAIN
+         ========================================== -->
+    <div id="passCurtainModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl">
+        <div class="w-full max-w-md bg-slate-900 border border-emerald-400/30 rounded-3xl p-7 text-center shadow-2xl space-y-5">
+            <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-3xl">
+                🙈
+            </div>
+            <div>
+                <span class="text-xs uppercase tracking-widest font-bold text-emerald-400">Mode Pass & Play</span>
+                <h2 id="passNextPlayerTitle" class="font-display text-2xl sm:text-3xl font-extrabold text-white mt-1">Giliran Pemain 2</h2>
+                <p class="text-xs sm:text-sm text-slate-300 mt-2">Serahkan perangkat ke pemain ini. Pastikan teman lain tidak mengintip layar ya!</p>
+            </div>
+            <button id="btnRevealPassHand" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 font-display font-bold text-base sm:text-lg shadow-xl hover:brightness-110 transition active:scale-95">
+                👀 SAYA SIAP, BUKA KARTU!
+            </button>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 4: WINNER PODIUM & SCOREBOARD
+         ========================================== -->
+    <div id="winnerModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="w-full max-w-md bg-slate-900 border border-amber-400/40 rounded-3xl p-6 sm:p-7 text-center shadow-2xl space-y-5">
+            <div class="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-4xl shadow-xl">
+                🏆
+            </div>
+            <div>
+                <span class="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold">PERMAINAN SELESAI!</span>
+                <h2 id="winnerNameTitle" class="font-display text-3xl font-extrabold text-white mt-2">Kapten UNO Menang!</h2>
+                <p id="winnerSubText" class="text-xs sm:text-sm text-slate-300 mt-1">Berhasil menghabiskan seluruh kartu dan mengumpulkan poin ronde!</p>
+            </div>
+
+            <!-- Standings List -->
+            <div id="winnerStandingsList" class="bg-slate-950/90 rounded-2xl p-3.5 border border-white/10 space-y-2 text-left"></div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button id="btnBackToLobbyWin" class="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border border-white/10 transition">
+                    Ke Menu Utama
+                </button>
+                <button id="btnPlayAgain" class="py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-110 text-slate-950 font-display font-bold text-sm shadow-lg transition">
+                    🔄 Main Lagi!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 5: RULES & GITHUB PUBLISH GUIDE
+         ========================================== -->
+    <div id="rulesModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="w-full max-w-2xl bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-7 shadow-2xl max-h-[88vh] overflow-y-auto space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h2 class="font-display text-xl sm:text-2xl font-bold text-white">📖 Panduan Resmi UNO & Cara Publish ke GitHub</h2>
+                <button id="btnCloseRules" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">✕ Tutup</button>
+            </div>
+
+            <div class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <div class="p-3.5 rounded-2xl bg-slate-800/70 border border-white/10">
+                    <h3 class="font-bold text-amber-300 mb-1">1. Komposisi 108 Kartu Resmi UNO</h3>
+                    <p>Setiap dek berisi tepat <b>108 kartu</b>: 4 warna (Merah, Kuning, Hijau, Biru) masing-masing memiliki satu kartu <b>0</b>, dua kartu angka <b>1–9</b>, dua kartu <b>Skip (⊘)</b>, dua kartu <b>Reverse (⇄)</b>, dan dua kartu <b>Draw Two (+2)</b>, ditambah 4 kartu <b>Wild</b> dan 4 kartu <b>Wild Draw Four (+4)</b>.</p>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-slate-800/70 border border-white/10">
+                    <h3 class="font-bold text-emerald-300 mb-1">2. Aturan Main & Kartu Aksi</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><b>Cocokkan Kartu:</b> Mainkan kartu dengan <b>Warna</b>, <b>Angka</b>, atau <b>Simbol Aksi</b> yang sama dengan kartu teratas di meja, atau keluarkan kartu <b>Wild / +4</b> kapan saja.</li>
+                        <li><b>Skip (⊘):</b> Melewati giliran pemain berikutnya.</li>
+                        <li><b>Reverse (⇄):</b> Memutar arah putaran jarum jam. <i>(Khusus 2 pemain: berfungsi langsung seperti Skip!)</i></li>
+                        <li><b>Draw Two (+2) & Wild (+4):</b> Pemain berikutnya wajib mengambil kartu penalti kecuali fitur <b>Stacking</b> aktif dan ia membalas dengan kartu +2/+4 yang sesuai.</li>
+                        <li><b>Teriak UNO!:</b> Saat kartu di tanganmu tinggal 1, klik tombol <b>TERIAK UNO!</b>. Jika lupa dan lawan menekan <b>LUPA UNO!</b>, kamu terkena penalti +2 kartu.</li>
+                    </ul>
+                </div>
+
+                <div class="p-3.5 rounded-2xl bg-indigo-950/60 border border-indigo-400/30">
+                    <h3 class="font-bold text-indigo-300 mb-1">3. Cara Upload ke GitHub Pages & Share ke Teman</h3>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
+                        <li>Simpan kode game ini sebagai <code>index.html</code> di repository GitHub kamu.</li>
+                        <li>Buka <b>Settings → Pages</b> di GitHub, pilih branch <code>main</code> lalu klik <b>Save</b>.</li>
+                        <li>Buka link GitHub Pages kamu, pilih tab <b>🌐 Online Room → Buat Room Baru</b>.</li>
+                        <li>Klik <b>🔗 Salin Link Invite</b> dan kirim ke WhatsApp/Discord temanmu — mereka otomatis masuk ke mejamu!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. WEB AUDIO SYNTHESIZER (Zero External Assets, 100% Reliable)
+         ********************************************************************/
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+            playTone(freq, type = 'sine', duration = 0.12, delay = 0, gainVal = 0.14) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime + delay;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(gainVal, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration);
+                } catch (e) {}
+            }
+            cardPlay() {
+                this.playTone(520, 'triangle', 0.09, 0, 0.16);
+                this.playTone(780, 'sine', 0.11, 0.04, 0.12);
+            }
+            cardDraw() {
+                this.playTone(340, 'sine', 0.08, 0, 0.12);
+                this.playTone(440, 'triangle', 0.08, 0.05, 0.10);
+            }
+            actionSpecial() {
+                this.playTone(440, 'sawtooth', 0.1, 0, 0.12);
+                this.playTone(587, 'sawtooth', 0.1, 0.08, 0.12);
+                this.playTone(880, 'triangle', 0.18, 0.16, 0.15);
+            }
+            unoShout() {
+                this.playTone(587.33, 'square', 0.12, 0, 0.15);
+                this.playTone(880, 'square', 0.22, 0.1, 0.18);
+            }
+            penaltyHit() {
+                this.playTone(260, 'sawtooth', 0.16, 0, 0.16);
+                this.playTone(185, 'sawtooth', 0.25, 0.12, 0.18);
+            }
+            winFanfare() {
+                const notes = [523.25, 659.25, 783.99, 1046.5];
+                notes.forEach((n, idx) => this.playTone(n, 'triangle', 0.22, idx * 0.11, 0.18));
+            }
+        }
+        const sfx = new SoundEngine();
+
+        /********************************************************************
+         * 2. OFFICIAL 108-CARD UNO DECK GENERATOR & SHUFFLER
+         ********************************************************************/
+        const COLORS = ['red', 'yellow', 'green', 'blue'];
+        const COLOR_META = {
+            red:    { hex: '#ef4444', dark: '#991b1b', glow: 'rgba(239, 68, 68, 0.55)', name: 'Merah' },
+            yellow: { hex: '#facc15', dark: '#854d0e', glow: 'rgba(250, 204, 21, 0.55)', name: 'Kuning' },
+            green:  { hex: '#22c55e', dark: '#166534', glow: 'rgba(34, 197, 94, 0.55)',  name: 'Hijau' },
+            blue:   { hex: '#3b82f6', dark: '#1e40af', glow: 'rgba(59, 130, 246, 0.55)', name: 'Biru' },
+            wild:   { hex: '#a855f7', dark: '#3b0764', glow: 'rgba(168, 85, 247, 0.55)', name: 'Wild' }
+        };
+
+        function createOfficialDeck() {
+            const deck = [];
+            let uid = 1;
+            for (const color of COLORS) {
+                // One '0' per color
+                deck.push({ id: `c_${uid++}`, color, value: '0', score: 0 });
+                // Two of each 1-9 per color
+                for (let n = 1; n <= 9; n++) {
+                    deck.push({ id: `c_${uid++}`, color, value: String(n), score: n });
+                    deck.push({ id: `c_${uid++}`, color, value: String(n), score: n });
+                }
+                // Two Skip, Two Reverse, Two +2 per color
+                for (let i = 0; i < 2; i++) {
+                    deck.push({ id: `c_${uid++}`, color, value: 'skip', score: 20 });
+                    deck.push({ id: `c_${uid++}`, color, value: 'reverse', score: 20 });
+                    deck.push({ id: `c_${uid++}`, color, value: '+2', score: 20 });
+                }
+            }
+            // Four Wild & Four Wild Draw Four (+4)
+            for (let i = 0; i < 4; i++) {
+                deck.push({ id: `c_${uid++}`, color: 'wild', value: 'wild', score: 50 });
+                deck.push({ id: `c_${uid++}`, color: 'wild', value: '+4', score: 50 });
+            }
+            return shuffleArray(deck);
+        }
+
+        function shuffleArray(arr) {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        }
+
+        function getCardSymbol(val) {
+            if (val === 'skip') return '⊘';
+            if (val === 'reverse') return '⇄';
+            if (val === 'wild') return '★';
+            return val;
+        }
+
+        function getCardTitle(card) {
+            const cName = COLOR_META[card.color]?.name || '';
+            if (card.value === 'skip') return `Skip ${cName}`;
+            if (card.value === 'reverse') return `Reverse ${cName}`;
+            if (card.value === '+2') return `Draw +2 ${cName}`;
+            if (card.value === 'wild') return 'Wild Ganti Warna';
+            if (card.value === '+4') return 'Wild Draw +4';
+            return `${cName} ${card.value}`;
+        }
+
+        /********************************************************************
+         * 3. CENTRAL GAME STATE & MULTIPLAYER ENGINE
+         ********************************************************************/
+        const BOT_NAMES = ['Bot Bima 🧠', 'Bot Citra ⚡', 'Bot Dika 🔥'];
+
+        const state = {
+            mode: 'bot', // 'bot' | 'pass' | 'online'
+            status: 'lobby', // 'lobby' | 'playing' | 'gameover'
+            botTotalPlayers: 4,
+            passTotalPlayers: 3,
+            rules: {
+                stacking: true,
+                unoPenalty: true
+            },
+            players: [], // { id, name, hand: [], isBot, peerId, saidUno, score }
+            deck: [],
+            discardPile: [],
+            activeColor: 'red',
+            activeValue: '0',
+            turnIndex: 0,
+            direction: 1, // 1 = Clockwise, -1 = Counter-Clockwise
+            drawStack: 0, // Accumulated +2 / +4 penalty
+            hasDrawnThisTurn: false,
+            pendingWildCardId: null,
+            vulnerableUnoPlayerId: null, // Player who currently has 1 card and forgot to press UNO!
+            winner: null,
+            actionLog: 'Selamat datang di UNO! Arena',
+            // Visual Canvas Animations
+            flyingCards: [],
+            particles: [],
+            floatingReactions: [],
+            ringAngle: 0,
+            botTimer: null,
+            // Online WebRTC State (PeerJS)
+            isHost: true,
+            myPlayerIndex: 0,
+            roomCode: '',
+            peer: null,
+            hostConn: null,
+            clientConns: [] // Array of { peerId, conn, name }
+        };
+
+        /********************************************************************
+         * 4. CORE UNO RULES & LEGAL MOVE VALIDATION
+         ********************************************************************/
+        function isCardPlayable(card, gameState = state) {
+            if (!card) return false;
+            // If there is an active draw penalty stack (+2 or +4)
+            if (gameState.drawStack > 0) {
+                if (!gameState.rules.stacking) return false;
+                if (gameState.activeValue === '+2') {
+                    return card.value === '+2' || card.value === '+4';
+                }
+                if (gameState.activeValue === '+4') {
+                    return card.value === '+4';
+                }
+                return false;
+            }
+            // Normal turn: Wilds are always playable
+            if (card.color === 'wild') return true;
+            // Match active color or match active value/symbol
+            if (card.color === gameState.activeColor) return true;
+            if (card.value === gameState.activeValue) return true;
+            return false;
+        }
+
+        function getNextPlayerIndex(currentIndex, dir, total, steps = 1) {
+            let idx = currentIndex;
+            for (let s = 0; s < steps; s++) {
+                idx = (idx + dir + total) % total;
+            }
+            return idx;
+        }
+
+        function replenishDeckIfNeeded() {
+            if (state.deck.length > 0) return;
+            if (state.discardPile.length <= 1) {
+                // Emergency extra deck if all 108 cards are held in hands
+                state.deck = createOfficialDeck();
+                return;
+            }
+            const topCard = state.discardPile.pop();
+            const recycled = state.discardPile.map(c => ({
+                ...c,
+                color: (c.value === 'wild' || c.value === '+4') ? 'wild' : c.color
+            }));
+            state.deck = shuffleArray(recycled);
+            state.discardPile = [topCard];
+            showToast('♻️ Dek kartu dikocok ulang dari tumpukan buangan!', 'info');
+        }
+
+        function drawCardsForPlayer(playerIndex, count) {
+            const drawn = [];
+            for (let i = 0; i < count; i++) {
+                replenishDeckIfNeeded();
+                if (state.deck.length > 0) {
+                    const card = state.deck.pop();
+                    state.players[playerIndex].hand.push(card);
+                    drawn.push(card);
+                }
+            }
+            if (drawn.length > 0) {
+                state.players[playerIndex].saidUno = false;
+                if (state.vulnerableUnoPlayerId === state.players[playerIndex].id) {
+                    state.vulnerableUnoPlayerId = null;
+                }
+            }
+            return drawn;
+        }
+
+        /********************************************************************
+         * 5. MATCH INITIALIZATION & TURN FLOW
+         ********************************************************************/
+        function startMatch(mode) {
+            clearTimeout(state.botTimer);
+            state.mode = mode;
+            state.status = 'playing';
+            state.rules.stacking = document.getElementById('ruleStacking').checked;
+            state.rules.unoPenalty = document.getElementById('ruleUnoPenalty').checked;
+
+            const myName = (document.getElementById('inputPlayerName').value || 'Kapten UNO').trim();
+            state.deck = createOfficialDeck();
+            state.discardPile = [];
+            state.players = [];
+            state.direction = 1;
+            state.drawStack = 0;
+            state.hasDrawnThisTurn = false;
+            state.pendingWildCardId = null;
+            state.vulnerableUnoPlayerId = null;
+            state.winner = null;
+
+            if (mode === 'bot') {
+                state.isHost = true;
+                state.myPlayerIndex = 0;
+                state.players.push({ id: 'p_0', name: myName, hand: [], isBot: false, saidUno: false });
+                for (let i = 1; i < state.botTotalPlayers; i++) {
+                    state.players.push({
+                        id: `p_${i}`,
+                        name: BOT_NAMES[i - 1],
+                        hand: [],
+                        isBot: true,
+                        saidUno: false
+                    });
+                }
+            } else if (mode === 'pass') {
+                state.isHost = true;
+                state.myPlayerIndex = 0;
+                for (let i = 0; i < state.passTotalPlayers; i++) {
+                    const customName = (document.getElementById(`passName${i}`)?.value || `Pemain ${i + 1}`).trim();
+                    state.players.push({
+                        id: `p_${i}`,
+                        name: customName,
+                        hand: [],
+                        isBot: false,
+                        saidUno: false
+                    });
+                }
+            } else if (mode === 'online') {
+                // Built by Host from onlineWaitingRoom
+                state.players = buildOnlinePlayersList();
+            }
+
+            // Deal 7 cards to each player
+            for (let p = 0; p < state.players.length; p++) {
+                drawCardsForPlayer(p, 7);
+            }
+
+            // Flip first starting card (ensure it's a number card for a clean start)
+            let firstCard = state.deck.pop();
+            while (firstCard.color === 'wild' || ['skip', 'reverse', '+2'].includes(firstCard.value)) {
+                state.deck.unshift(firstCard);
+                firstCard = state.deck.pop();
+            }
+            state.discardPile.push(firstCard);
+            state.activeColor = firstCard.color;
+            state.activeValue = firstCard.value;
+            state.turnIndex = 0;
+            state.actionLog = `Permainan dimulai! Kartu awal: ${getCardTitle(firstCard)}`;
+
+            // Hide modals and show HUD
+            document.getElementById('lobbyModal').classList.add('hidden');
+            document.getElementById('winnerModal').classList.add('hidden');
+            document.getElementById('gameplayHud').classList.remove('hidden');
+
+            const modeBadge = document.getElementById('badgeGameMode');
+            modeBadge.classList.remove('hidden');
+            modeBadge.textContent = mode === 'bot' ? 'VS Bot AI' : (mode === 'pass' ? 'Pass & Play' : `Online (${state.roomCode})`);
+
+            sfx.cardPlay();
+            broadcastOnlineState();
+            updateUI();
+        }
+
+        function getPerspectivePlayerIndex() {
+            if (state.mode === 'pass') {
+                return state.turnIndex;
+            }
+            return state.myPlayerIndex;
+        }
+
+        function isMyTurn() {
+            if (state.status !== 'playing') return false;
+            if (state.mode === 'pass') {
+                return !state.players[state.turnIndex]?.isBot;
+            }
+            return state.turnIndex === state.myPlayerIndex;
+        }
+
+        /********************************************************************
+         * 6. EXECUTING CARD PLAYS, DRAWS, AND UNO SHOUTS
+         ********************************************************************/
+        function handleLocalCardClick(cardId) {
+            if (!isMyTurn()) {
+                showToast('⏳ Tunggu giliranmu dulu ya!', 'warn');
+                return;
+            }
+            const pIdx = getPerspectivePlayerIndex();
+            const player = state.players[pIdx];
+            const card = player.hand.find(c => c.id === cardId);
+            if (!card) return;
+
+            if (!isCardPlayable(card)) {
+                sfx.penaltyHit();
+                showToast('❌ Kartu itu tidak cocok dengan warna/simbol aktif!', 'warn');
+                return;
+            }
+
+            // If it's a Wild card, open color picker modal first
+            if (card.color === 'wild') {
+                state.pendingWildCardId = card.id;
+                document.getElementById('wildModal').classList.remove('hidden');
+                return;
+            }
+
+            submitMove({ type: 'PLAY_CARD', playerIndex: pIdx, cardId: card.id, chosenColor: card.color });
+        }
+
+        function submitMove(action) {
+            // In Online client mode, send action to Host for authoritative execution
+            if (state.mode === 'online' && !state.isHost) {
+                if (state.hostConn && state.hostConn.open) {
+                    state.hostConn.send({ type: 'CLIENT_ACTION', action });
+                }
+                return;
+            }
+            executeAuthoritativeAction(action);
+        }
+
+        function executeAuthoritativeAction(action) {
+            if (state.status !== 'playing') return;
+
+            if (action.type === 'EMOJI') {
+                spawnEmojiBubble(action.playerIndex, action.emoji);
+                broadcastOnlineState({ emojiEvent: action });
+                return;
+            }
+
+            if (action.type === 'CALL_UNO') {
+                const caller = state.players[action.playerIndex];
+                if (!caller) return;
+                caller.saidUno = true;
+                if (state.vulnerableUnoPlayerId === caller.id) {
+                    state.vulnerableUnoPlayerId = null;
+                }
+                sfx.unoShout();
+                state.actionLog = `🔔 ${caller.name} teriak UNO!`;
+                showToast(`🔔 ${caller.name} TERIAK UNO!`, 'uno');
+                broadcastOnlineState();
+                updateUI();
+                return;
+            }
+
+            if (action.type === 'CATCH_UNO') {
+                const catcher = state.players[action.playerIndex];
+                const target = state.players.find(p => p.id === state.vulnerableUnoPlayerId);
+                if (target && catcher) {
+                    drawCardsForPlayer(state.players.indexOf(target), 2);
+                    state.vulnerableUnoPlayerId = null;
+                    sfx.penaltyHit();
+                    state.actionLog = `🚨 ${catcher.name} menangkap ${target.name} lupa teriak UNO! (+2 kartu)`;
+                    showToast(`🚨 ${target.name} kena penalti +2 karena lupa UNO!`, 'warn');
+                    broadcastOnlineState();
+                    updateUI();
+                }
+                return;
+            }
+
+            // Validate turn owner for turn-based actions
+            if (action.playerIndex !== state.turnIndex) return;
+            const player = state.players[state.turnIndex];
+
+            if (action.type === 'PLAY_CARD') {
+                const cardIdx = player.hand.findIndex(c => c.id === action.cardId);
+                if (cardIdx === -1) return;
+                const card = player.hand[cardIdx];
+                if (!isCardPlayable(card)) return;
+
+                // Remove from hand & push to discard pile
+                player.hand.splice(cardIdx, 1);
+                state.discardPile.push(card);
+                state.activeColor = card.color === 'wild' ? (action.chosenColor || 'red') : card.color;
+                state.activeValue = card.value;
+                state.hasDrawnThisTurn = false;
+
+                // Spawn flying card animation on Canvas
+                spawnCardFlyAnimation(action.playerIndex, card, state.activeColor);
+
+                // Check UNO status (1 card left)
+                if (player.hand.length === 1) {
+                    if (player.isBot) {
+                        // Bots automatically remember UNO 80% of the time; 20% chance human can catch them!
+                        if (Math.random() < 0.8 || !state.rules.unoPenalty) {
+                            player.saidUno = true;
+                            sfx.unoShout();
+                            showToast(`🔔 ${player.name} teriak UNO!`, 'uno');
+                        } else {
+                            player.saidUno = false;
+                            state.vulnerableUnoPlayerId = player.id;
+                        }
+                    } else if (!player.saidUno && state.rules.unoPenalty) {
+                        state.vulnerableUnoPlayerId = player.id;
+                    }
+                } else {
+                    player.saidUno = false;
+                }
+
+                // Check Win Condition (0 cards left!)
+                if (player.hand.length === 0) {
+                    handleGameOver(player);
+                    return;
+                }
+
+                // Apply Special Card Effects
+                let steps = 1;
+                const total = state.players.length;
+
+                if (card.value === 'reverse') {
+                    sfx.actionSpecial();
+                    if (total === 2) {
+                        // Official 2-player UNO rule: Reverse acts like Skip!
+                        steps = 2;
+                        state.actionLog = `⇄ ${player.name} mainkan Reverse! (Duel 2P: Lawan dilewati)`;
+                    } else {
+                        state.direction *= -1;
+                        state.actionLog = `⇄ ${player.name} memutar arah permainan!`;
+                    }
+                } else if (card.value === 'skip') {
+                    sfx.actionSpecial();
+                    steps = 2;
+                    const skippedIdx = getNextPlayerIndex(state.turnIndex, state.direction, total, 1);
+                    state.actionLog = `⊘ ${player.name} melewati giliran ${state.players[skippedIdx].name}!`;
+                } else if (card.value === '+2') {
+                    sfx.actionSpecial();
+                    state.drawStack += 2;
+                    state.actionLog = `💥 ${player.name} menyerang dengan +2! (Total penalti: +${state.drawStack})`;
+                } else if (card.value === '+4') {
+                    sfx.actionSpecial();
+                    state.drawStack += 4;
+                    const cLabel = COLOR_META[state.activeColor]?.name || state.activeColor;
+                    state.actionLog = `🔥 ${player.name} keluarkan WILD +4 (${cLabel})! (Penalti: +${state.drawStack})`;
+                } else if (card.value === 'wild') {
+                    sfx.actionSpecial();
+                    const cLabel = COLOR_META[state.activeColor]?.name || state.activeColor;
+                    state.actionLog = `🎨 ${player.name} ganti warna ke ${cLabel}!`;
+                } else {
+                    sfx.cardPlay();
+                    state.actionLog = `${player.name} memainkan ${getCardTitle(card)}`;
+                }
+
+                const prevTurn = state.turnIndex;
+                state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, total, steps);
+
+                // If stacking is disabled and there's a drawStack, immediately force the next player to draw & skip
+                if (state.drawStack > 0 && !state.rules.stacking) {
+                    const victimIdx = state.turnIndex;
+                    const victim = state.players[victimIdx];
+                    const pen = state.drawStack;
+                    drawCardsForPlayer(victimIdx, pen);
+                    state.drawStack = 0;
+                    state.actionLog = `💥 ${victim.name} mengambil +${pen} kartu penalti!`;
+                    state.turnIndex = getNextPlayerIndex(victimIdx, state.direction, total, 1);
+                }
+
+                checkPassAndPlayCurtain(prevTurn, state.turnIndex);
+                broadcastOnlineState();
+                updateUI();
+                scheduleBotTurnIfNeeded();
+                return;
+            }
+
+            if (action.type === 'DRAW_CARD') {
+                // Case 1: Player must accept accumulated penalty stack (+2 / +4)
+                if (state.drawStack > 0) {
+                    const count = state.drawStack;
+                    drawCardsForPlayer(state.turnIndex, count);
+                    sfx.penaltyHit();
+                    state.actionLog = `📥 ${player.name} mengambil ${count} kartu penalti!`;
+                    showToast(`${player.name} mengambil +${count} kartu!`, 'warn');
+                    state.drawStack = 0;
+                    state.hasDrawnThisTurn = false;
+                    const prevTurn = state.turnIndex;
+                    state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
+                    checkPassAndPlayCurtain(prevTurn, state.turnIndex);
+                    broadcastOnlineState();
+                    updateUI();
+                    scheduleBotTurnIfNeeded();
+                    return;
+                }
+
+                // Case 2: Normal single card draw
+                if (state.hasDrawnThisTurn) return;
+                const drawn = drawCardsForPlayer(state.turnIndex, 1);
+                sfx.cardDraw();
+                const drawnCard = drawn[0];
+
+                if (drawnCard && isCardPlayable(drawnCard)) {
+                    state.hasDrawnThisTurn = true;
+                    state.actionLog = `${player.name} mengambil 1 kartu (Bisa langsung dimainkan atau disimpan)`;
+                    if (!player.isBot && state.turnIndex === getPerspectivePlayerIndex()) {
+                        showToast('✨ Kartu yang diambil cocok! Klik kartu untuk mainkan atau klik Simpan & Lewati.', 'info');
+                    }
+                    broadcastOnlineState();
+                    updateUI();
+                    scheduleBotTurnIfNeeded();
+                } else {
+                    // Card cannot be played -> advance turn automatically
+                    state.hasDrawnThisTurn = false;
+                    state.actionLog = `${player.name} mengambil 1 kartu dan melewati giliran.`;
+                    const prevTurn = state.turnIndex;
+                    state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
+                    checkPassAndPlayCurtain(prevTurn, state.turnIndex);
+                    broadcastOnlineState();
+                    updateUI();
+                    scheduleBotTurnIfNeeded();
+                }
+                return;
+            }
+
+            if (action.type === 'PASS_TURN') {
+                if (!state.hasDrawnThisTurn) return;
+                state.hasDrawnThisTurn = false;
+                state.actionLog = `${player.name} menyimpan kartu dan melewati giliran.`;
+                const prevTurn = state.turnIndex;
+                state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
+                checkPassAndPlayCurtain(prevTurn, state.turnIndex);
+                broadcastOnlineState();
+                updateUI();
+                scheduleBotTurnIfNeeded();
+            }
+        }
+
+        function checkPassAndPlayCurtain(prevTurn, nextTurn) {
+            if (state.mode === 'pass' && state.status === 'playing' && prevTurn !== nextTurn) {
+                const nextPlayer = state.players[nextTurn];
+                if (nextPlayer && !nextPlayer.isBot) {
+                    document.getElementById('passNextPlayerTitle').textContent = `Giliran ${nextPlayer.name}`;
+                    document.getElementById('passCurtainModal').classList.remove('hidden');
+                }
+            }
+        }
+
+        /********************************************************************
+         * 7. SMART AI BOT ENGINE
+         ********************************************************************/
+        function scheduleBotTurnIfNeeded() {
+            clearTimeout(state.botTimer);
+            if (state.status !== 'playing') return;
+            if (state.mode === 'online' && !state.isHost) return;
+
+            const currentPlayer = state.players[state.turnIndex];
+            if (!currentPlayer || !currentPlayer.isBot) return;
+
+            state.botTimer = setTimeout(() => {
+                runBotTurn(state.turnIndex);
+            }, 950);
+        }
+
+        function runBotTurn(botIdx) {
+            if (state.status !== 'playing' || state.turnIndex !== botIdx) return;
+            const bot = state.players[botIdx];
+
+            // If someone forgot to say UNO, bot has a 55% chance to catch them!
+            if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== bot.id && Math.random() < 0.55) {
+                executeAuthoritativeAction({ type: 'CATCH_UNO', playerIndex: botIdx });
+            }
+
+            const playableCards = bot.hand.filter(c => isCardPlayable(c));
+            if (playableCards.length > 0) {
+                // Prioritize action/number cards before spending Wild/+4
+                playableCards.sort((a, b) => {
+                    if (a.color === 'wild' && b.color !== 'wild') return 1;
+                    if (a.color !== 'wild' && b.color === 'wild') return -1;
+                    return b.score - a.score;
+                });
+                const chosen = playableCards[0];
+                let bestColor = chosen.color;
+                if (chosen.color === 'wild') {
+                    // Pick dominant color in bot's hand
+                    const counts = { red: 0, yellow: 0, green: 0, blue: 0 };
+                    bot.hand.forEach(c => {
+                        if (counts[c.color] !== undefined) counts[c.color]++;
+                    });
+                    bestColor = Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b, 'red');
+                }
+                executeAuthoritativeAction({
+                    type: 'PLAY_CARD',
+                    playerIndex: botIdx,
+                    cardId: chosen.id,
+                    chosenColor: bestColor
+                });
+            } else {
+                if (state.hasDrawnThisTurn) {
+                    executeAuthoritativeAction({ type: 'PASS_TURN', playerIndex: botIdx });
+                } else {
+                    executeAuthoritativeAction({ type: 'DRAW_CARD', playerIndex: botIdx });
+                }
+            }
+        }
+
+        /********************************************************************
+         * 8. GAME OVER & OFFICIAL UNO SCORING CALCULATION
+         ********************************************************************/
+        function handleGameOver(winnerPlayer) {
+            state.status = 'gameover';
+            state.winner = winnerPlayer;
+            sfx.winFanfare();
+            spawnConfettiBurst();
+
+            // Official UNO Scoring: Winner gets points from all opponents' remaining cards
+            let winnerBonus = 0;
+            const standings = state.players.map(p => {
+                const handPenalty = p.hand.reduce((sum, c) => sum + (c.score || 0), 0);
+                if (p.id !== winnerPlayer.id) winnerBonus += handPenalty;
+                return {
+                    name: p.name,
+                    cardsLeft: p.hand.length,
+                    handPoints: handPenalty,
+                    isWinner: p.id === winnerPlayer.id
+                };
+            }).sort((a, b) => a.cardsLeft - b.cardsLeft);
+
+            document.getElementById('winnerNameTitle').textContent = `🎉 ${winnerPlayer.name} Menang!`;
+            document.getElementById('winnerSubText').textContent = `Total Skor Kemenangan Ronde: +${winnerBonus} Poin`;
+
+            const listEl = document.getElementById('winnerStandingsList');
+            listEl.innerHTML = standings.map((s, idx) => `
+                <div class="flex items-center justify-between px-3 py-2 rounded-xl ${s.isWinner ? 'bg-amber-500/20 border border-amber-400/40' : 'bg-slate-900'}">
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-bold text-sm ${s.isWinner ? 'text-amber-300' : 'text-slate-400'}">#${idx + 1}</span>
+                        <span class="font-bold text-xs sm:text-sm text-white">${escapeHtml(s.name)}</span>
+                    </div>
+                    <div class="text-xs font-semibold ${s.isWinner ? 'text-emerald-300' : 'text-slate-400'}">
+                        ${s.isWinner ? `🏆 Habis! (+${winnerBonus} pts)` : `Sisa ${s.cardsLeft} kartu (-${s.handPoints} pts)`}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('winnerModal').classList.remove('hidden');
+            broadcastOnlineState();
+            updateUI();
+        }
+
+        /********************************************************************
+         * 9. WEBRTC ONLINE MULTIPLAYER (PeerJS P2P Room Engine)
+         ********************************************************************/
+        const PEER_PREFIX = 'unoarena-v2-';
+
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+
+        function createOnlineRoom() {
+            if (typeof Peer === 'undefined') {
+                showToast('⚠️ Library PeerJS tidak termuat. Cek koneksi internetmu.', 'warn');
+                return;
+            }
+            cleanupPeer();
+            const code = generateRoomCode();
+            state.roomCode = code;
+            state.isHost = true;
+            state.myPlayerIndex = 0;
+            state.clientConns = [];
+
+            const badge = document.getElementById('onlineStatusBadge');
+            badge.textContent = 'Membuka Room...';
+
+            const peer = new Peer(PEER_PREFIX + code);
+            state.peer = peer;
+
+            peer.on('open', () => {
+                badge.textContent = 'Room Aktif 🟢';
+                document.getElementById('onlineStepSelect').classList.add('hidden');
+                document.getElementById('onlineWaitingRoom').classList.remove('hidden');
+                document.getElementById('hostRoomControls').classList.remove('hidden');
+                document.getElementById('clientWaitingNotice').classList.add('hidden');
+                document.getElementById('lobbyRoomCodeDisplay').textContent = code;
+                document.getElementById('topRoomCodeLabel').textContent = `ROOM: ${code}`;
+                document.getElementById('btnCopyRoomTop').classList.remove('hidden');
+                document.getElementById('btnCopyRoomTop').classList.add('flex');
+                renderOnlineWaitingList();
+                showToast(`✅ Room ${code} berhasil dibuat! Bagikan ke temanmu.`, 'info');
+            });
+
+            peer.on('connection', (conn) => {
+                conn.on('data', (data) => handleHostIncomingData(conn, data));
+                conn.on('close', () => {
+                    state.clientConns = state.clientConns.filter(c => c.conn !== conn);
+                    renderOnlineWaitingList();
+                });
+            });
+
+            peer.on('error', (err) => {
+                badge.textContent = 'Gagal Konek 🔴';
+                showToast(`⚠️ Koneksi Room: ${err.type || 'Error'}`, 'warn');
+            });
+        }
+
+        function joinOnlineRoom(rawCode) {
+            if (typeof Peer === 'undefined') {
+                showToast('⚠️ Library PeerJS tidak termuat. Cek koneksi internetmu.', 'warn');
+                return;
+            }
+            const code = (rawCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (code.length < 3) {
+                showToast('⚠️ Masukkan kode room yang valid (contoh: UNO88)!', 'warn');
+                return;
+            }
+            cleanupPeer();
+            state.roomCode = code;
+            state.isHost = false;
+
+            const badge = document.getElementById('onlineStatusBadge');
+            badge.textContent = 'Menghubungkan...';
+
+            const peer = new Peer();
+            state.peer = peer;
+
+            peer.on('open', () => {
+                const conn = peer.connect(PEER_PREFIX + code, { reliable: true });
+                state.hostConn = conn;
+
+                conn.on('open', () => {
+                    badge.textContent = 'Terhubung 🟢';
+                    const myName = (document.getElementById('inputPlayerName').value || 'Pemain').trim();
+                    conn.send({ type: 'JOIN_REQUEST', name: myName });
+                    document.getElementById('onlineStepSelect').classList.add('hidden');
+                    document.getElementById('onlineWaitingRoom').classList.remove('hidden');
+                    document.getElementById('hostRoomControls').classList.add('hidden');
+                    document.getElementById('clientWaitingNotice').classList.remove('hidden');
+                    document.getElementById('lobbyRoomCodeDisplay').textContent = code;
+                    document.getElementById('topRoomCodeLabel').textContent = `ROOM: ${code}`;
+                    document.getElementById('btnCopyRoomTop').classList.remove('hidden');
+                    document.getElementById('btnCopyRoomTop').classList.add('flex');
+                });
+
+                conn.on('data', (data) => handleClientIncomingData(data));
+                conn.on('close', () => {
+                    showToast('⚠️ Koneksi dengan Host terputus.', 'warn');
+                });
+            });
+
+            peer.on('error', () => {
+                badge.textContent = 'Room Tidak Ditemukan';
+                showToast('❌ Kode Room tidak ditemukan atau Host sudah keluar.', 'warn');
+            });
+        }
+
+        function handleHostIncomingData(conn, data) {
+            if (!data || !data.type) return;
+            if (data.type === 'JOIN_REQUEST') {
+                if (state.clientConns.length >= 3) {
+                    conn.send({ type: 'ROOM_FULL' });
+                    return;
+                }
+                state.clientConns.push({
+                    peerId: conn.peer,
+                    conn,
+                    name: (data.name || `Teman ${state.clientConns.length + 1}`).slice(0, 14)
+                });
+                renderOnlineWaitingList();
+                broadcastLobbyRoster();
+                showToast(`👋 ${data.name} bergabung ke Room!`, 'info');
+            } else if (data.type === 'CLIENT_ACTION') {
+                executeAuthoritativeAction(data.action);
+            }
+        }
+
+        function handleClientIncomingData(data) {
+            if (!data || !data.type) return;
+            if (data.type === 'LOBBY_ROSTER') {
+                const listEl = document.getElementById('lobbyPlayerList');
+                document.getElementById('lobbyPlayerCount').textContent = data.names.length;
+                listEl.innerHTML = data.names.map((n, idx) => `
+                    <div class="px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-xs font-bold text-white flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>${idx === 0 ? '👑 ' : ''}${escapeHtml(n)}</span>
+                    </div>
+                `).join('');
+            } else if (data.type === 'STATE_SYNC') {
+                const s = data.snapshot;
+                state.mode = 'online';
+                state.status = s.status;
+                state.players = s.players;
+                state.discardPile = s.discardPile;
+                state.deck = new Array(s.deckCount).fill({});
+                state.activeColor = s.activeColor;
+                state.activeValue = s.activeValue;
+                state.turnIndex = s.turnIndex;
+                state.direction = s.direction;
+                state.drawStack = s.drawStack;
+                state.hasDrawnThisTurn = s.hasDrawnThisTurn;
+                state.vulnerableUnoPlayerId = s.vulnerableUnoPlayerId;
+                state.actionLog = s.actionLog;
+                state.myPlayerIndex = s.assignedIndex;
+
+                if (data.extra && data.extra.emojiEvent) {
+                    spawnEmojiBubble(data.extra.emojiEvent.playerIndex, data.extra.emojiEvent.emoji);
+                }
+
+                document.getElementById('lobbyModal').classList.add('hidden');
+                document.getElementById('gameplayHud').classList.remove('hidden');
+
+                if (state.status === 'gameover' && s.winnerId) {
+                    const winP = state.players.find(p => p.id === s.winnerId) || state.players[0];
+                    handleGameOver(winP);
+                } else {
+                    document.getElementById('winnerModal').classList.add('hidden');
+                }
+                updateUI();
+            }
+        }
+
+        function renderOnlineWaitingList() {
+            const myName = (document.getElementById('inputPlayerName').value || 'Host').trim();
+            const names = [myName, ...state.clientConns.map(c => c.name)];
+            document.getElementById('lobbyPlayerCount').textContent = names.length;
+            const listEl = document.getElementById('lobbyPlayerList');
+            listEl.innerHTML = names.map((n, idx) => `
+                <div class="px-3 py-2 rounded-xl bg-slate-800 border border-white/10 text-xs font-bold text-white flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>${idx === 0 ? '👑 ' : ''}${escapeHtml(n)}</span>
+                </div>
+            `).join('');
+        }
+
+        function broadcastLobbyRoster() {
+            const myName = (document.getElementById('inputPlayerName').value || 'Host').trim();
+            const names = [myName, ...state.clientConns.map(c => c.name)];
+            state.clientConns.forEach(c => {
+                if (c.conn && c.conn.open) {
+                    c.conn.send({ type: 'LOBBY_ROSTER', names });
+                }
+            });
+        }
+
+        function buildOnlinePlayersList() {
+            const myName = (document.getElementById('inputPlayerName').value || 'Host').trim();
+            const list = [{ id: 'p_0', name: myName, hand: [], isBot: false, saidUno: false }];
+            state.clientConns.forEach((c, idx) => {
+                list.push({
+                    id: `p_${idx + 1}`,
+                    name: c.name,
+                    peerId: c.peerId,
+                    hand: [],
+                    isBot: false,
+                    saidUno: false
+                });
+            });
+            const fillBots = document.getElementById('chkFillBotsOnline').checked;
+            while (list.length < 2 || (fillBots && list.length < 3)) {
+                const bIdx = list.length;
+                list.push({
+                    id: `p_${bIdx}`,
+                    name: BOT_NAMES[(bIdx - 1) % BOT_NAMES.length],
+                    hand: [],
+                    isBot: true,
+                    saidUno: false
+                });
+            }
+            return list;
+        }
+
+        function broadcastOnlineState(extra = null) {
+            if (state.mode !== 'online' || !state.isHost) return;
+            state.clientConns.forEach((c, idx) => {
+                if (c.conn && c.conn.open) {
+                    const snapshot = {
+                        status: state.status,
+                        players: state.players,
+                        discardPile: state.discardPile.slice(-4),
+                        deckCount: state.deck.length,
+                        activeColor: state.activeColor,
+                        activeValue: state.activeValue,
+                        turnIndex: state.turnIndex,
+                        direction: state.direction,
+                        drawStack: state.drawStack,
+                        hasDrawnThisTurn: state.hasDrawnThisTurn,
+                        vulnerableUnoPlayerId: state.vulnerableUnoPlayerId,
+                        actionLog: state.actionLog,
+                        winnerId: state.winner?.id || null,
+                        assignedIndex: idx + 1
+                    };
+                    c.conn.send({ type: 'STATE_SYNC', snapshot, extra });
+                }
+            });
+        }
+
+        function cleanupPeer() {
+            if (state.peer) {
+                try { state.peer.destroy(); } catch (e) {}
+                state.peer = null;
+            }
+            state.hostConn = null;
+            state.clientConns = [];
+        }
+
+        /********************************************************************
+         * 10. DOM HAND & HUD RENDERER
+         ********************************************************************/
+        function updateUI() {
+            if (state.status === 'lobby') return;
+
+            const pIdx = getPerspectivePlayerIndex();
+            const localPlayer = state.players[pIdx] || state.players[0];
+            const activePlayer = state.players[state.turnIndex];
+            const myTurn = isMyTurn();
+
+            // Update Top & Mobile Turn Banners
+            const turnLabel = myTurn ? '⚡ GILIRANMU SEKARANG!' : `Giliran ${activePlayer?.name || '...'}`;
+            document.getElementById('hudTurnText').textContent = `${turnLabel} • ${state.actionLog}`;
+            document.getElementById('mobileTurnBanner').textContent = turnLabel;
+            document.getElementById('hudDeckCount').textContent = `Dek: ${state.deck.length}`;
+
+            // Active color dot
+            const colorMeta = COLOR_META[state.activeColor] || COLOR_META.red;
+            const dot = document.getElementById('activeColorDot');
+            dot.style.backgroundColor = colorMeta.hex;
+
+            // Penalty stack badge
+            const penBadge = document.getElementById('penaltyBadge');
+            const hudStack = document.getElementById('hudStackText');
+            if (state.drawStack > 0) {
+                penBadge.classList.remove('hidden');
+                penBadge.textContent = `Penalti +${state.drawStack}`;
+                hudStack.classList.remove('hidden');
+                hudStack.textContent = `Penalti: +${state.drawStack}`;
+            } else {
+                penBadge.classList.add('hidden');
+                hudStack.classList.add('hidden');
+            }
+
+            // Action Buttons (Draw, Pass, UNO Shout, Catch UNO)
+            const btnDraw = document.getElementById('btnDrawCard');
+            const btnPass = document.getElementById('btnPassTurn');
+            const btnCallUno = document.getElementById('btnCallUno');
+            const btnCatchUno = document.getElementById('btnCatchUno');
+
+            btnDraw.disabled = !myTurn || state.hasDrawnThisTurn;
+            if (state.drawStack > 0 && myTurn) {
+                btnDraw.textContent = `Ambil Penalti (+${state.drawStack})`;
+                btnDraw.className = 'px-4 py-2 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs sm:text-sm shadow-lg transition active:scale-95';
+            } else {
+                btnDraw.textContent = 'Ambil Kartu';
+                btnDraw.className = 'px-3.5 sm:px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 disabled:opacity-40 disabled:pointer-events-none text-white font-bold text-xs sm:text-sm border border-sky-300/30 shadow-lg transition active:scale-95';
+            }
+
+            if (myTurn && state.hasDrawnThisTurn) {
+                btnPass.classList.remove('hidden');
+            } else {
+                btnPass.classList.add('hidden');
+            }
+
+            // Show "TERIAK UNO!" when player has 1 or 2 cards and hasn't shouted yet
+            if (localPlayer && localPlayer.hand.length <= 2 && localPlayer.hand.length >= 1 && !localPlayer.saidUno) {
+                btnCallUno.classList.remove('hidden');
+            } else {
+                btnCallUno.classList.add('hidden');
+            }
+
+            // Show "LUPA UNO! (+2)" if another player has 1 card and forgot to shout UNO
+            if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== localPlayer?.id) {
+                btnCatchUno.classList.remove('hidden');
+            } else {
+                btnCatchUno.classList.add('hidden');
+            }
+
+            // Render Local Player Hand
+            document.getElementById('localPlayerNameLabel').textContent = `${localPlayer.name} (${localPlayer.hand.length} Kartu)`;
+            const playableCount = myTurn ? localPlayer.hand.filter(c => isCardPlayable(c)).length : 0;
+            const hintBadge = document.getElementById('playableHintBadge');
+            if (myTurn) {
+                hintBadge.textContent = playableCount > 0 ? `${playableCount} kartu bisa dimainkan` : 'Ambil kartu dari dek';
+                hintBadge.className = playableCount > 0
+                    ? 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                    : 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30';
+            } else {
+                hintBadge.textContent = 'Menunggu lawan...';
+                hintBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-white/10';
+            }
+
+            renderPlayerHandDOM(localPlayer.hand, myTurn);
+        }
+
+        function renderPlayerHandDOM(hand, myTurn) {
+            const container = document.getElementById('playerHandContainer');
+            container.innerHTML = '';
+
+            hand.forEach((card, idx) => {
+                const canPlay = myTurn && isCardPlayable(card);
+                const cardEl = document.createElement('button');
+                cardEl.type = 'button';
+                const bgClass = `bg-uno-${card.color}`;
+                const textClass = `text-uno-${card.color}`;
+                const sym = getCardSymbol(card.value);
+
+                cardEl.className = `uno-card-dom ${bgClass} ${canPlay ? 'playable' : 'unplayable'}`;
+                cardEl.style.marginLeft = idx === 0 ? '0px' : (hand.length > 9 ? '-22px' : '-10px');
+                cardEl.style.zIndex = String(idx + 1);
+                cardEl.title = getCardTitle(card);
+
+                cardEl.innerHTML = `
+                    <div class="card-oval"></div>
+                    <span class="absolute top-1.5 left-2 font-display font-bold text-xs sm:text-sm text-white drop-shadow">${sym}</span>
+                    <span class="relative z-10 font-display font-extrabold text-2xl sm:text-3xl ${textClass} drop-shadow-sm">${sym}</span>
+                    <span class="absolute bottom-1.5 right-2 font-display font-bold text-xs sm:text-sm text-white drop-shadow rotate-180">${sym}</span>
+                `;
+
+                cardEl.addEventListener('click', () => handleLocalCardClick(card.id));
+                container.appendChild(cardEl);
+            });
+        }
+
+        /********************************************************************
+         * 11. INTERACTIVE HTML5 CANVAS ARENA RENDERER & PHYSICS LOOP
+         ********************************************************************/
+        const canvas = document.getElementById('unoCanvas');
+        const ctx = canvas.getContext('2d');
+        let deckHitbox = { x: 0, y: 0, w: 90, h: 132 };
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Allow clicking directly on the Canvas Draw Pile to draw a card!
+        canvas.addEventListener('pointerdown', (e) => {
+            if (state.status !== 'playing' || !isMyTurn()) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            if (x >= deckHitbox.x && x <= deckHitbox.x + deckHitbox.w &&
+                y >= deckHitbox.y && y <= deckHitbox.y + deckHitbox.h) {
+                const pIdx = getPerspectivePlayerIndex();
+                submitMove({ type: 'DRAW_CARD', playerIndex: pIdx });
+            }
+        });
+
+        function getOpponentSeats(w, h) {
+            const pIdx = getPerspectivePlayerIndex();
+            const total = state.players.length;
+            const seats = [];
+
+            // Seat positions around top/left/right of table
+            const layouts = {
+                2: [{ x: w * 0.5, y: Math.max(92, h * 0.16), pos: 'top' }],
+                3: [
+                    { x: Math.max(115, w * 0.20), y: Math.max(105, h * 0.22), pos: 'left' },
+                    { x: Math.min(w - 115, w * 0.80), y: Math.max(105, h * 0.22), pos: 'right' }
+                ],
+                4: [
+                    { x: Math.max(105, w * 0.15), y: h * 0.36, pos: 'left' },
+                    { x: w * 0.5, y: Math.max(90, h * 0.14), pos: 'top' },
+                    { x: Math.min(w - 105, w * 0.85), y: h * 0.36, pos: 'right' }
+                ]
+            };
+
+            const coords = layouts[total] || layouts[4];
+            for (let offset = 1; offset < total; offset++) {
+                const targetIdx = (pIdx + offset) % total;
+                const c = coords[offset - 1] || coords[0];
+                seats.push({
+                    playerIndex: targetIdx,
+                    player: state.players[targetIdx],
+                    x: c.x,
+                    y: c.y
+                });
+            }
+            return seats;
+        }
+
+        function spawnCardFlyAnimation(fromPlayerIdx, card, chosenColor) {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const pIdx = getPerspectivePlayerIndex();
+            let startX = w * 0.5;
+            let startY = h - 90;
+
+            if (fromPlayerIdx !== pIdx) {
+                const seats = getOpponentSeats(w, h);
+                const seat = seats.find(s => s.playerIndex === fromPlayerIdx);
+                if (seat) {
+                    startX = seat.x;
+                    startY = seat.y;
+                }
+            }
+
+            state.flyingCards.push({
+                x: startX,
+                y: startY,
+                tx: w * 0.5 + 56,
+                ty: h * 0.42,
+                progress: 0,
+                card: { ...card, displayColor: chosenColor || card.color }
+            });
+
+            // Spawn color burst particles at center discard pile
+            const hex = COLOR_META[chosenColor || card.color]?.hex || '#ffffff';
+            for (let i = 0; i < 18; i++) {
+                const angle = (Math.PI * 2 * i) / 18;
+                const speed = 2 + Math.random() * 4;
+                state.particles.push({
+                    x: w * 0.5 + 56,
+                    y: h * 0.42,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    radius: 3 + Math.random() * 4,
+                    color: hex,
+                    alpha: 1
+                });
+            }
+        }
+
+        function spawnConfettiBurst() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const palette = ['#ef4444', '#facc15', '#22c55e', '#3b82f6', '#a855f7'];
+            for (let i = 0; i < 70; i++) {
+                state.particles.push({
+                    x: w * 0.5,
+                    y: h * 0.35,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: (Math.random() - 0.7) * 12,
+                    radius: 4 + Math.random() * 5,
+                    color: palette[i % palette.length],
+                    alpha: 1
+                });
+            }
+        }
+
+        function spawnEmojiBubble(playerIndex, emoji) {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            const pIdx = getPerspectivePlayerIndex();
+            let x = w * 0.5;
+            let y = h - 160;
+            if (playerIndex !== pIdx) {
+                const seats = getOpponentSeats(w, h);
+                const seat = seats.find(s => s.playerIndex === playerIndex);
+                if (seat) {
+                    x = seat.x;
+                    y = seat.y + 20;
+                }
+            }
+            const sender = state.players[playerIndex]?.name || 'Pemain';
+            state.floatingReactions.push({ x, y, emoji, sender, alpha: 1, dy: 0 });
+        }
+
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function drawCanvasCard(ctx, x, y, w, h, card, activeColorOverride = null) {
+            ctx.save();
+            const cKey = activeColorOverride || card.displayColor || card.color || 'red';
+            const meta = COLOR_META[cKey] || COLOR_META.red;
+
+            // Card shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
+            ctx.shadowBlur = 16;
+            ctx.shadowOffsetY = 6;
+
+            // Card base
+            drawRoundedRect(ctx, x, y, w, h, 14);
+            ctx.fillStyle = meta.hex;
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Inner white angled oval
+            ctx.save();
+            ctx.translate(x + w / 2, y + h / 2);
+            ctx.rotate(-0.45);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w * 0.36, h * 0.30, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.92)';
+            ctx.fill();
+            ctx.restore();
+
+            // Center & corner symbols
+            const sym = getCardSymbol(card.value);
+            ctx.fillStyle = meta.dark;
+            ctx.font = `800 ${Math.round(w * 0.36)}px Fredoka, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(sym, x + w / 2, y + h / 2 + 2);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `700 ${Math.round(w * 0.18)}px Fredoka, sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.fillText(sym, x + 8, y + 16);
+
+            ctx.restore();
+        }
+
+        function drawCardBack(ctx, x, y, w, h, highlight = false) {
+            ctx.save();
+            ctx.shadowColor = highlight ? 'rgba(56, 189, 248, 0.75)' : 'rgba(0, 0, 0, 0.55)';
+            ctx.shadowBlur = highlight ? 22 : 12;
+            drawRoundedRect(ctx, x, y, w, h, 12);
+            ctx.fillStyle = '#0f172a';
+            ctx.fill();
+            ctx.lineWidth = highlight ? 3.5 : 3;
+            ctx.strokeStyle = highlight ? '#38bdf8' : '#f8fafc';
+            ctx.stroke();
+
+            // Red oval inside back
+            ctx.translate(x + w / 2, y + h / 2);
+            ctx.rotate(-0.45);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, w * 0.36, h * 0.28, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+
+            ctx.fillStyle = '#facc15';
+            ctx.font = `800 ${Math.round(w * 0.22)}px Fredoka, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('UNO', 0, 1);
+            ctx.restore();
+        }
+
+        function renderArenaLoop() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            ctx.clearRect(0, 0, w, h);
+
+            const activeMeta = COLOR_META[state.activeColor] || COLOR_META.red;
+            const centerX = w * 0.5;
+            const centerY = h * 0.41;
+
+            // 1. Ambient Spotlight Table Felt Background
+            const bgGrad = ctx.createRadialGradient(centerX, centerY, 30, centerX, centerY, Math.max(w, h) * 0.7);
+            bgGrad.addColorStop(0, '#1e293b');
+            bgGrad.addColorStop(0.55, '#0f172a');
+            bgGrad.addColorStop(1, '#060911');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            // Active Color Aura Ring in Center
+            const auraGrad = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, 185);
+            auraGrad.addColorStop(0, activeMeta.glow);
+            auraGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = auraGrad;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 185, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. Animated Turn Direction Ring
+            state.ringAngle += 0.012 * state.direction;
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(state.ringAngle);
+            ctx.strokeStyle = activeMeta.hex;
+            ctx.globalAlpha = 0.42;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([18, 14]);
+            ctx.beginPath();
+            ctx.arc(0, 0, 118, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Direction Arrowheads on Ring
+            for (let a = 0; a < 4; a++) {
+                ctx.save();
+                ctx.rotate((Math.PI / 2) * a);
+                ctx.translate(118, 0);
+                ctx.fillStyle = activeMeta.hex;
+                ctx.beginPath();
+                if (state.direction === 1) {
+                    ctx.moveTo(0, 6);
+                    ctx.lineTo(-5, -5);
+                    ctx.lineTo(5, -5);
+                } else {
+                    ctx.moveTo(0, -6);
+                    ctx.lineTo(-5, 5);
+                    ctx.lineTo(5, 5);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.restore();
+
+            // 3. Draw Pile & Discard Pile in Center Table
+            const cardW = w < 640 ? 74 : 88;
+            const cardH = w < 640 ? 110 : 130;
+
+            // Draw Pile (Left of center)
+            const drawX = centerX - cardW - 14;
+            const drawY = centerY - cardH / 2;
+            deckHitbox = { x: drawX, y: drawY, w: cardW, h: cardH };
+            const highlightDraw = state.status === 'playing' && isMyTurn() && !state.hasDrawnThisTurn;
+            drawCardBack(ctx, drawX - 4, drawY - 4, cardW, cardH, false);
+            drawCardBack(ctx, drawX, drawY, cardW, cardH, highlightDraw);
+
+            // Deck Count Label under Draw Pile
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '600 11px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`DEK (${state.deck.length})`, drawX + cardW / 2, drawY + cardH + 16);
+
+            // Discard Pile (Right of center)
+            const discardX = centerX + 14;
+            const discardY = centerY - cardH / 2;
+            const topCard = state.discardPile[state.discardPile.length - 1];
+            if (topCard) {
+                const overrideColor = (topCard.color === 'wild') ? state.activeColor : null;
+                drawCanvasCard(ctx, discardX, discardY, cardW, cardH, topCard, overrideColor);
+                ctx.fillStyle = activeMeta.hex;
+                ctx.font = '700 11px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`WARNA: ${activeMeta.name.toUpperCase()}`, discardX + cardW / 2, discardY + cardH + 16);
+            }
+
+            // 4. Render Opponents Around the Arena Table
+            if (state.status !== 'lobby' && state.players.length > 1) {
+                const seats = getOpponentSeats(w, h);
+                seats.forEach(seat => {
+                    const p = seat.player;
+                    if (!p) return;
+                    const isTurn = state.turnIndex === seat.playerIndex && state.status === 'playing';
+
+                    ctx.save();
+                    // Seat Card Frame
+                    const boxW = w < 640 ? 132 : 158;
+                    const boxH = 66;
+                    const bx = seat.x - boxW / 2;
+                    const by = seat.y - boxH / 2;
+
+                    if (isTurn) {
+                        ctx.shadowColor = activeMeta.hex;
+                        ctx.shadowBlur = 18;
+                    }
+                    drawRoundedRect(ctx, bx, by, boxW, boxH, 16);
+                    ctx.fillStyle = isTurn ? 'rgba(30, 41, 59, 0.96)' : 'rgba(15, 23, 42, 0.82)';
+                    ctx.fill();
+                    ctx.lineWidth = isTurn ? 2.5 : 1.2;
+                    ctx.strokeStyle = isTurn ? activeMeta.hex : 'rgba(255,255,255,0.15)';
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    // Player Name & Card Count
+                    ctx.fillStyle = isTurn ? '#fde047' : '#f8fafc';
+                    ctx.font = '700 12px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(p.name, seat.x, by + 20);
+
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '600 11px Inter, sans-serif';
+                    ctx.fillText(`${p.hand.length} Kartu`, seat.x, by + 36);
+
+                    // Mini fanned card backs
+                    const miniCount = Math.min(p.hand.length, 7);
+                    const miniW = 16;
+                    const miniH = 24;
+                    const totalSpan = (miniCount - 1) * 10 + miniW;
+                    const startMiniX = seat.x - totalSpan / 2;
+                    for (let m = 0; m < miniCount; m++) {
+                        drawRoundedRect(ctx, startMiniX + m * 10, by + 44, miniW, miniH, 3);
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fill();
+                        ctx.lineWidth = 1;
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.stroke();
+                    }
+
+                    // UNO Badge if opponent has 1 card
+                    if (p.hand.length === 1) {
+                        drawRoundedRect(ctx, bx + boxW - 42, by - 10, 46, 20, 8);
+                        ctx.fillStyle = '#ef4444';
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '800 10px Fredoka, sans-serif';
+                        ctx.fillText('UNO!', bx + boxW - 19, by + 1);
+                    }
+                    ctx.restore();
+                });
+            }
+
+            // 5. Update & Render Flying Played Cards
+            for (let i = state.flyingCards.length - 1; i >= 0; i--) {
+                const fc = state.flyingCards[i];
+                fc.progress += 0.085;
+                if (fc.progress >= 1) {
+                    state.flyingCards.splice(i, 1);
+                    continue;
+                }
+                const ease = 1 - Math.pow(1 - fc.progress, 3);
+                const cx = fc.x + (fc.tx - fc.x) * ease;
+                const cy = fc.y + (fc.ty - fc.y) * ease;
+                drawCanvasCard(ctx, cx - cardW / 2, cy - cardH / 2, cardW, cardH, fc.card, fc.card.displayColor);
+            }
+
+            // 6. Update & Render Particles
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                const pt = state.particles[i];
+                pt.x += pt.vx;
+                pt.y += pt.vy;
+                pt.alpha -= 0.024;
+                if (pt.alpha <= 0) {
+                    state.particles.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, pt.alpha);
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 7. Update & Render Floating Emoji Reactions
+            for (let i = state.floatingReactions.length - 1; i >= 0; i--) {
+                const fr = state.floatingReactions[i];
+                fr.dy -= 1.2;
+                fr.alpha -= 0.014;
+                if (fr.alpha <= 0) {
+                    state.floatingReactions.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, fr.alpha);
+                ctx.font = '28px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(fr.emoji, fr.x, fr.y + fr.dy);
+                ctx.font = '700 11px Inter, sans-serif';
+                ctx.fillStyle = '#fde047';
+                ctx.fillText(fr.sender, fr.x, fr.y + fr.dy + 18);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(renderArenaLoop);
+        }
+
+        /********************************************************************
+         * 12. HELPER UTILITIES & EVENT LISTENERS
+         ********************************************************************/
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            const colorClass = type === 'warn'
+                ? 'bg-rose-600/95 border-rose-300/40 text-white'
+                : (type === 'uno'
+                    ? 'bg-gradient-to-r from-red-600 via-amber-500 to-yellow-500 border-white text-slate-950 font-extrabold'
+                    : 'bg-slate-900/95 border-white/15 text-slate-100');
+            el.className = `px-4 py-2 rounded-2xl border shadow-xl text-xs sm:text-sm font-semibold transition-all duration-300 ${colorClass}`;
+            el.textContent = msg;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, 2600);
+        }
+
+        function copyTextSafe(text, successMsg) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showToast(successMsg, 'info')).catch(() => fallbackCopy(text, successMsg));
+            } else {
+                fallbackCopy(text, successMsg);
+            }
+        }
+
+        function fallbackCopy(text, successMsg) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); showToast(successMsg, 'info'); } catch (e) {}
+            ta.remove();
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, s => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[s]));
+        }
+
+        function initEventListeners() {
+            // Mode Tabs in Lobby
+            const tabs = {
+                bot: { btn: document.getElementById('tabModeBot'), panel: document.getElementById('panelModeBot') },
+                pass: { btn: document.getElementById('tabModePass'), panel: document.getElementById('panelModePass') },
+                online: { btn: document.getElementById('tabModeOnline'), panel: document.getElementById('panelModeOnline') }
+            };
+            Object.keys(tabs).forEach(k => {
+                tabs[k].btn.addEventListener('click', () => {
+                    Object.keys(tabs).forEach(other => {
+                        tabs[other].panel.classList.toggle('hidden', other !== k);
+                        tabs[other].btn.className = other === k
+                            ? 'mode-tab py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md'
+                            : 'mode-tab py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition text-slate-300 hover:text-white';
+                    });
+                });
+            });
+
+            // Random Name Generator
+            const funNames = ['Raja +4 🔥', 'Sultan UNO 👑', 'Master Skip ⚡', 'Kapten Wild 🎨', 'Ninja Kartu 🥷', 'Dewi Hoki 🍀'];
+            document.getElementById('btnRandomName').addEventListener('click', () => {
+                const pick = funNames[Math.floor(Math.random() * funNames.length)];
+                document.getElementById('inputPlayerName').value = pick;
+            });
+
+            // Bot Player Count Selection
+            document.querySelectorAll('.bot-count-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.botTotalPlayers = parseInt(btn.getAttribute('data-bot-count'), 10);
+                    document.querySelectorAll('.bot-count-btn').forEach(b => {
+                        const active = b === btn;
+                        b.className = active
+                            ? 'bot-count-btn py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-amber-400 bg-amber-500/20 text-amber-300 transition'
+                            : 'bot-count-btn py-2.5 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300 hover:border-amber-400 transition';
+                    });
+                });
+            });
+
+            // Pass & Play Count Selection
+            document.querySelectorAll('.pass-count-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.passTotalPlayers = parseInt(btn.getAttribute('data-pass-count'), 10);
+                    document.querySelectorAll('.pass-count-btn').forEach(b => {
+                        const active = b === btn;
+                        b.className = active
+                            ? 'pass-count-btn py-2 rounded-xl font-bold text-xs sm:text-sm border border-emerald-400 bg-emerald-500/20 text-emerald-300'
+                            : 'pass-count-btn py-2 rounded-xl font-bold text-xs sm:text-sm border border-white/15 bg-slate-900 text-slate-300';
+                    });
+                    for (let i = 0; i < 4; i++) {
+                        const inp = document.getElementById(`passName${i}`);
+                        if (inp) inp.classList.toggle('hidden', i >= state.passTotalPlayers);
+                    }
+                });
+            });
+
+            // Start Game Buttons
+            document.getElementById('btnStartBotGame').addEventListener('click', () => startMatch('bot'));
+            document.getElementById('btnStartPassGame').addEventListener('click', () => startMatch('pass'));
+            document.getElementById('btnStartOnlineMatch').addEventListener('click', () => startMatch('online'));
+
+            // Online Room Controls
+            document.getElementById('btnCreateRoom').addEventListener('click', createOnlineRoom);
+            document.getElementById('btnJoinRoom').addEventListener('click', () => {
+                const code = document.getElementById('inputJoinRoomCode').value;
+                joinOnlineRoom(code);
+            });
+            document.getElementById('btnCopyRoomCode').addEventListener('click', () => {
+                copyTextSafe(state.roomCode, `📋 Kode Room ${state.roomCode} disalin!`);
+            });
+            document.getElementById('btnCopyRoomTop').addEventListener('click', () => {
+                copyTextSafe(state.roomCode, `📋 Kode Room ${state.roomCode} disalin!`);
+            });
+            document.getElementById('btnCopyInviteLink').addEventListener('click', () => {
+                const base = window.location.href.split('?')[0].split('#')[0];
+                const inviteUrl = `${base}?room=${state.roomCode}`;
+                copyTextSafe(inviteUrl, '🔗 Link Invite berhasil disalin! Bagikan ke temanmu.');
+            });
+
+            // Gameplay Action Buttons
+            document.getElementById('btnDrawCard').addEventListener('click', () => {
+                if (!isMyTurn()) return;
+                submitMove({ type: 'DRAW_CARD', playerIndex: getPerspectivePlayerIndex() });
+            });
+            document.getElementById('btnPassTurn').addEventListener('click', () => {
+                if (!isMyTurn()) return;
+                submitMove({ type: 'PASS_TURN', playerIndex: getPerspectivePlayerIndex() });
+            });
+            document.getElementById('btnCallUno').addEventListener('click', () => {
+                submitMove({ type: 'CALL_UNO', playerIndex: getPerspectivePlayerIndex() });
+            });
+            document.getElementById('btnCatchUno').addEventListener('click', () => {
+                submitMove({ type: 'CATCH_UNO', playerIndex: getPerspectivePlayerIndex() });
+            });
+
+            // Hand Sorting Buttons
+            document.getElementById('btnSortColor').addEventListener('click', () => {
+                const p = state.players[getPerspectivePlayerIndex()];
+                if (!p) return;
+                const order = { red: 1, yellow: 2, green: 3, blue: 4, wild: 5 };
+                p.hand.sort((a, b) => (order[a.color] - order[b.color]) || a.value.localeCompare(b.value));
+                sfx.cardDraw();
+                updateUI();
+            });
+            document.getElementById('btnSortValue').addEventListener('click', () => {
+                const p = state.players[getPerspectivePlayerIndex()];
+                if (!p) return;
+                p.hand.sort((a, b) => a.value.localeCompare(b.value) || a.color.localeCompare(b.color));
+                sfx.cardDraw();
+                updateUI();
+            });
+
+            // Wild Color Picker Modal Buttons
+            document.querySelectorAll('.wild-color-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const chosenColor = btn.getAttribute('data-wild-color');
+                    document.getElementById('wildModal').classList.add('hidden');
+                    if (state.pendingWildCardId) {
+                        const cardId = state.pendingWildCardId;
+                        state.pendingWildCardId = null;
+                        submitMove({
+                            type: 'PLAY_CARD',
+                            playerIndex: getPerspectivePlayerIndex(),
+                            cardId,
+                            chosenColor
+                        });
+                    }
+                });
+            });
+
+            // Pass & Play Curtain Reveal Button
+            document.getElementById('btnRevealPassHand').addEventListener('click', () => {
+                document.getElementById('passCurtainModal').classList.add('hidden');
+                updateUI();
+            });
+
+            // Navigation & Top Bar Buttons
+            document.getElementById('btnBackHome').addEventListener('click', () => {
+                clearTimeout(state.botTimer);
+                document.getElementById('lobbyModal').classList.remove('hidden');
+            });
+            document.getElementById('btnBackToLobbyWin').addEventListener('click', () => {
+                document.getElementById('winnerModal').classList.add('hidden');
+                document.getElementById('lobbyModal').classList.remove('hidden');
+            });
+            document.getElementById('btnPlayAgain').addEventListener('click', () => {
+                startMatch(state.mode);
+            });
+
+            // Rules Modal
+            document.getElementById('btnOpenRules').addEventListener('click', () => {
+                document.getElementById('rulesModal').classList.remove('hidden');
+            });
+            document.getElementById('btnCloseRules').addEventListener('click', () => {
+                document.getElementById('rulesModal').classList.add('hidden');
+            });
+
+            // Sound Toggle
+            document.getElementById('btnToggleSound').addEventListener('click', () => {
+                sfx.enabled = !sfx.enabled;
+                document.getElementById('iconSoundOn').classList.toggle('hidden', !sfx.enabled);
+                document.getElementById('iconSoundOff').classList.toggle('hidden', sfx.enabled);
+                showToast(sfx.enabled ? '🔊 Suara Efek Aktif' : '🔇 Suara Efek Dimatikan', 'info');
+            });
+
+            // Emoji Reaction Popover
+            const emojiPop = document.getElementById('emojiPopover');
+            document.getElementById('btnToggleEmoji').addEventListener('click', () => {
+                emojiPop.classList.toggle('hidden');
+            });
+            document.querySelectorAll('.emoji-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const emoji = btn.getAttribute('data-emoji');
+                    emojiPop.classList.add('hidden');
+                    submitMove({ type: 'EMOJI', playerIndex: getPerspectivePlayerIndex(), emoji });
+                });
+            });
+
+            // Auto-detect ?room=CODE from URL for 1-click GitHub Pages Friend Invite!
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const roomParam = params.get('room');
+                if (roomParam) {
+                    document.getElementById('tabModeOnline').click();
+                    document.getElementById('inputJoinRoomCode').value = roomParam.toUpperCase();
+                }
+            } catch (e) {}
+        }
+
+        window.onload = () => {
+            initEventListeners();
+            requestAnimationFrame(renderArenaLoop);
+        };
+    </script>
+</body>
+</html>
