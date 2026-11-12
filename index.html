@@ -57,8 +57,12 @@
             z-index: 40 !important;
             box-shadow: 0 20px 32px rgba(0, 0, 0, 0.8), 0 0 24px rgba(250, 204, 21, 0.95);
         }
+        .uno-card-dom.combo-ready {
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.9);
+            border-color: #7dd3fc;
+        }
         .uno-card-dom.unplayable {
-            filter: brightness(0.55) saturate(0.75);
+            filter: brightness(0.5) saturate(0.7);
             cursor: not-allowed;
             transform: translateY(4px) scale(0.96);
         }
@@ -186,7 +190,7 @@
     <div id="gameplayHud" class="hidden absolute inset-x-0 bottom-0 z-20 flex flex-col justify-end pointer-events-none pb-2 sm:pb-4">
         
         <!-- Mobile Turn & Penalty Info Bar -->
-        <div class="flex items-center justify-between px-4 mb-2 pointer-events-auto">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 mb-2 pointer-events-auto">
             <div class="flex items-center gap-2 bg-slate-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-2xl border border-white/10 shadow-lg">
                 <span id="activeColorDot" class="w-3.5 h-3.5 rounded-full bg-red-500 ring-2 ring-white/50"></span>
                 <span id="mobileTurnBanner" class="text-xs sm:text-sm font-bold text-white">Giliranmu!</span>
@@ -194,8 +198,8 @@
             </div>
 
             <!-- Action Buttons (Draw / Pass / UNO! / Challenge) -->
-            <div class="flex items-center gap-2">
-                <!-- Call UNO! Button -->
+            <div class="flex items-center gap-2 ml-auto">
+                <!-- Call UNO! Button (Strictly shown ONLY when legally required & playable!) -->
                 <button id="btnCallUno" class="hidden px-4 py-2 rounded-2xl bg-gradient-to-r from-red-600 via-orange-500 to-yellow-500 text-white font-display font-bold text-sm sm:text-base tracking-wide shadow-xl uno-shout-pulse transition active:scale-95">
                     TERIAK UNO! 🔔
                 </button>
@@ -247,14 +251,14 @@
                     <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-amber-300 text-xs font-bold mb-2">
                         <span>✨ 108 Kartu Resmi UNO</span>
                         <span>•</span>
-                        <span>Siap GitHub Pages</span>
+                        <span>Fitur Combo Angka Sama!</span>
                     </div>
                     <h1 class="font-display text-2xl sm:text-4xl font-extrabold text-white tracking-tight">UNO! PARTY ARENA</h1>
                     <p class="text-slate-300 text-xs sm:text-sm mt-0.5">Main bareng teman via Kode Room Online (WebRTC), Gantian HP (Pass & Play), atau lawan Bot AI Pintar.</p>
                 </div>
                 <div class="flex items-center gap-2 self-start sm:self-center">
                     <div class="w-11 h-16 rounded-xl bg-uno-red border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xl -rotate-12">7</div>
-                    <div class="w-11 h-16 rounded-xl bg-uno-blue border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xl rotate-6 -ml-3">+2</div>
+                    <div class="w-11 h-16 rounded-xl bg-uno-blue border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xl rotate-6 -ml-3">7</div>
                     <div class="w-11 h-16 rounded-xl bg-uno-wild border-2 border-white shadow-lg flex items-center justify-center font-display font-bold text-white text-xs rotate-12 -ml-3">+4</div>
                 </div>
             </div>
@@ -413,47 +417,49 @@
 
                 <!-- Right Column: House Rules & Quick Guide (5 cols) -->
                 <div class="lg:col-span-5 flex flex-col justify-between bg-slate-800/50 p-4 sm:p-5 rounded-2xl border border-white/10 space-y-4">
-                    <div class="space-y-3">
-                        <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
-                            <h3 class="font-display font-bold text-base text-white">⚙️ Aturan Meja (House Rules)</h3>
-                            <span class="text-[11px] font-semibold text-emerald-400">100% Akurat</span>
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                            <h3 class="font-display font-bold text-base text-white">⚙️ Aturan Meja (UNO Rules)</h3>
+                            <span class="text-[11px] font-semibold text-emerald-400">100% Akurat & Teruji</span>
                         </div>
 
-                        <!-- Rule 1: Stacking +2 / +4 -->
+                        <!-- Rule 1: Multi-Card Number Combo (NEW!) -->
+                        <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-sky-950/50 border border-sky-400/30 cursor-pointer hover:border-sky-400/60 transition">
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-xs sm:text-sm font-bold text-sky-300">Combo Keluarkan Angka Sama Sekaligus</span>
+                                    <span class="px-1.5 py-0.5 rounded bg-sky-500/30 text-sky-200 text-[10px] font-extrabold">BARU</span>
+                                </div>
+                                <div class="text-[11px] text-slate-300 mt-0.5">Punya beberapa kartu dengan angka yang sama (misal: tiga kartu angka 7)? Keluarkan semuanya sekaligus dalam 1 giliran!</div>
+                            </div>
+                            <input id="ruleMultiDrop" type="checkbox" checked class="mt-1 w-4 h-4 accent-sky-400 rounded cursor-pointer">
+                        </label>
+
+                        <!-- Rule 2: Stacking +2 / +4 -->
                         <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-white/10 cursor-pointer hover:border-white/20 transition">
                             <div>
                                 <div class="text-xs sm:text-sm font-bold text-white">Tumpuk Penalti (Stacking +2 / +4)</div>
-                                <div class="text-[11px] text-slate-400 mt-0.5">Balas serangan +2 dengan +2 (atau +4 dengan +4) agar penalti diteruskan ke pemain berikutnya!</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Balas serangan +2 dengan +2 (atau +4 dengan +4). Kartu angka biasa terkunci saat ada penalti aktif!</div>
                             </div>
                             <input id="ruleStacking" type="checkbox" checked class="mt-1 w-4 h-4 accent-amber-400 rounded cursor-pointer">
                         </label>
 
-                        <!-- Rule 2: 2-Player Skip Behavior -->
-                        <div class="p-3 rounded-xl bg-slate-900/80 border border-white/10">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs sm:text-sm font-bold text-white">Aturan Resmi Duel 2 Pemain</span>
-                                <span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">Aktif Otomatis</span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 mt-0.5">Saat tinggal 2 pemain, kartu <b>Reverse (Putar Balik)</b> otomatis berfungsi seperti <b>Skip</b> (giliran langsung kembali padamu).</p>
-                        </div>
-
                         <!-- Rule 3: UNO Call Penalty -->
                         <label class="flex items-start justify-between gap-3 p-3 rounded-xl bg-slate-900/80 border border-white/10 cursor-pointer hover:border-white/20 transition">
                             <div>
-                                <div class="text-xs sm:text-sm font-bold text-white">Wajib Teriak "UNO!" (+2 Penalti)</div>
-                                <div class="text-[11px] text-slate-400 mt-0.5">Saat kartu tersisa 1, wajib tekan tombol <b>TERIAK UNO!</b> sebelum ditegur lawan!</div>
+                                <div class="text-xs sm:text-sm font-bold text-white">Aturan Teriak "UNO!" Akurat (+2)</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">Tombol <b>TERIAK UNO!</b> hanya muncul saat kartumu <b>tersisa 1</b> (atau saat siap menurunkan kartu hingga sisa 1).</div>
                             </div>
                             <input id="ruleUnoPenalty" type="checkbox" checked class="mt-1 w-4 h-4 accent-amber-400 rounded cursor-pointer">
                         </label>
                     </div>
 
                     <!-- Mini Card Legend -->
-                    <div class="p-3.5 rounded-xl bg-slate-950/80 border border-white/10 space-y-2">
-                        <div class="text-xs font-bold text-amber-300">💡 Tips Cepat Bermain & Share GitHub:</div>
+                    <div class="p-3 rounded-xl bg-slate-950/80 border border-white/10 space-y-1.5">
+                        <div class="text-xs font-bold text-amber-300">💡 Highlight Fitur Baru:</div>
                         <ul class="text-[11px] text-slate-300 space-y-1 list-disc list-inside">
-                            <li>Kartu yang <b>menyala naik</b> artinya sah dimainkan.</li>
-                            <li>Klik dek tengah atau tombol <b>Ambil Kartu</b> jika tidak punya kartu cocok.</li>
-                            <li>Upload file <code>index.html</code> ini ke GitHub Pages untuk dimainkan bareng teman!</li>
+                            <li>Kartu dengan <b>badge biru <code>×2</code> / <code>×3</code></b> bisa dikeluarkan sekaligus (Combo Angka Sama)!</li>
+                            <li>Kartu pertama dari dek dijamin angka 0–9 atau mengikuti efek resmi UNO jika kartu aksi terbuka.</li>
                         </ul>
                     </div>
                 </div>
@@ -481,6 +487,31 @@
                 </button>
                 <button data-wild-color="blue" class="wild-color-btn py-5 rounded-2xl bg-uno-blue border-2 border-white font-display font-bold text-lg text-white shadow-lg hover:scale-105 transition active:scale-95">
                     🔵 BIRU
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         MODAL 2B: MULTI-CARD SAME NUMBER COMBO MODAL
+         ========================================== -->
+    <div id="comboModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
+        <div class="w-full max-w-md bg-slate-900 border border-sky-400/40 rounded-3xl p-6 text-center shadow-2xl space-y-4">
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-xs font-extrabold">
+                <span>⚡ COMBO ANGKA SAMA TERDETEKSI!</span>
+            </div>
+            <h2 id="comboModalTitle" class="font-display text-2xl font-extrabold text-white">Keluarkan Semua Angka 7?</h2>
+            <p class="text-xs text-slate-300">Pilih kartu angka yang sama untuk dikeluarkan sekaligus. Kartu paling kanan akan menjadi warna teratas di meja:</p>
+
+            <!-- Preview Cards in Combo -->
+            <div id="comboCardsPreview" class="flex items-center justify-center gap-2.5 py-2 overflow-x-auto"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                <button id="btnPlaySingleCard" class="py-3 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs sm:text-sm border border-white/15 transition active:scale-95">
+                    Keluarkan 1 Kartu Saja
+                </button>
+                <button id="btnPlayAllCombo" class="py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 hover:brightness-110 text-white font-display font-bold text-xs sm:text-sm shadow-xl transition active:scale-95">
+                    🔥 KELUARKAN SEMUA (<span id="comboCountBtnLabel">2</span> KARTU)
                 </button>
             </div>
         </div>
@@ -539,7 +570,7 @@
     <div id="rulesModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
         <div class="w-full max-w-2xl bg-slate-900 border border-white/15 rounded-3xl p-6 sm:p-7 shadow-2xl max-h-[88vh] overflow-y-auto space-y-4">
             <div class="flex items-center justify-between border-b border-white/10 pb-3">
-                <h2 class="font-display text-xl sm:text-2xl font-bold text-white">📖 Panduan Resmi UNO & Cara Publish ke GitHub</h2>
+                <h2 class="font-display text-xl sm:text-2xl font-bold text-white">📖 Panduan Resmi UNO & Fitur Combo</h2>
                 <button id="btnCloseRules" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">✕ Tutup</button>
             </div>
 
@@ -549,25 +580,18 @@
                     <p>Setiap dek berisi tepat <b>108 kartu</b>: 4 warna (Merah, Kuning, Hijau, Biru) masing-masing memiliki satu kartu <b>0</b>, dua kartu angka <b>1–9</b>, dua kartu <b>Skip (⊘)</b>, dua kartu <b>Reverse (⇄)</b>, dan dua kartu <b>Draw Two (+2)</b>, ditambah 4 kartu <b>Wild</b> dan 4 kartu <b>Wild Draw Four (+4)</b>.</p>
                 </div>
 
-                <div class="p-3.5 rounded-2xl bg-slate-800/70 border border-white/10">
-                    <h3 class="font-bold text-emerald-300 mb-1">2. Aturan Main & Kartu Aksi</h3>
-                    <ul class="list-disc list-inside space-y-1">
-                        <li><b>Cocokkan Kartu:</b> Mainkan kartu dengan <b>Warna</b>, <b>Angka</b>, atau <b>Simbol Aksi</b> yang sama dengan kartu teratas di meja, atau keluarkan kartu <b>Wild / +4</b> kapan saja.</li>
-                        <li><b>Skip (⊘):</b> Melewati giliran pemain berikutnya.</li>
-                        <li><b>Reverse (⇄):</b> Memutar arah putaran jarum jam. <i>(Khusus 2 pemain: berfungsi langsung seperti Skip!)</i></li>
-                        <li><b>Draw Two (+2) & Wild (+4):</b> Pemain berikutnya wajib mengambil kartu penalti kecuali fitur <b>Stacking</b> aktif dan ia membalas dengan kartu +2/+4 yang sesuai.</li>
-                        <li><b>Teriak UNO!:</b> Saat kartu di tanganmu tinggal 1, klik tombol <b>TERIAK UNO!</b>. Jika lupa dan lawan menekan <b>LUPA UNO!</b>, kamu terkena penalti +2 kartu.</li>
-                    </ul>
+                <div class="p-3.5 rounded-2xl bg-sky-950/60 border border-sky-400/30">
+                    <h3 class="font-bold text-sky-300 mb-1">2. Fitur Combo Keluarkan Semua Angka Sama</h3>
+                    <p>Jika kamu memiliki 2 atau lebih kartu dengan <b>angka yang sama</b> (misalnya Merah 7, Biru 7, dan Kuning 7), dan salah satunya sah dimainkan di giliranmu, kartu tersebut akan memiliki badge <b><code>COMBO ×3</code></b>. Saat diklik, kamu bisa memilih <b>Keluarkan Semua Sekaligus</b> atau 1 kartu saja! Kamu bahkan bisa memilih urutan kartu mana yang ditaruh paling atas.</p>
                 </div>
 
-                <div class="p-3.5 rounded-2xl bg-indigo-950/60 border border-indigo-400/30">
-                    <h3 class="font-bold text-indigo-300 mb-1">3. Cara Upload ke GitHub Pages & Share ke Teman</h3>
-                    <ol class="list-decimal list-inside space-y-1 text-slate-300">
-                        <li>Simpan kode game ini sebagai <code>index.html</code> di repository GitHub kamu.</li>
-                        <li>Buka <b>Settings → Pages</b> di GitHub, pilih branch <code>main</code> lalu klik <b>Save</b>.</li>
-                        <li>Buka link GitHub Pages kamu, pilih tab <b>🌐 Online Room → Buat Room Baru</b>.</li>
-                        <li>Klik <b>🔗 Salin Link Invite</b> dan kirim ke WhatsApp/Discord temanmu — mereka otomatis masuk ke mejamu!</li>
-                    </ol>
+                <div class="p-3.5 rounded-2xl bg-slate-800/70 border border-white/10">
+                    <h3 class="font-bold text-emerald-300 mb-1">3. Aturan Akurat Teriak "UNO!" & Penalti</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><b>Teriak UNO! Akurat:</b> Tombol <b>TERIAK UNO!</b> hanya muncul ketika kartu di tanganmu <b>tersisa tepat 1 kartu</b>, atau ketika kamu sedang di giliranmu dan <b>punya kartu yang sah dimainkan</b> yang akan membuat sisa kartumu menjadi 1. Tombol tidak akan muncul jika kamu sedang terkena penalti +2/+4 dan belum punya kartu balasan.</li>
+                        <li><b>Stacking (+2 / +4):</b> Saat diserang +2, kamu bisa membalas dengan +2 warna apa saja atau Wild +4. Saat diserang Wild +4, kamu hanya bisa membalas dengan sesama Wild +4.</li>
+                        <li><b>Duel 2 Pemain:</b> Kartu <b>Reverse (⇄)</b> otomatis berfungsi seperti <b>Skip (⊘)</b> sehingga giliran langsung kembali kepadamu.</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -613,6 +637,11 @@
                 this.playTone(520, 'triangle', 0.09, 0, 0.16);
                 this.playTone(780, 'sine', 0.11, 0.04, 0.12);
             }
+            comboPlay(count) {
+                for (let i = 0; i < count; i++) {
+                    this.playTone(480 + i * 140, 'triangle', 0.11, i * 0.06, 0.16);
+                }
+            }
             cardDraw() {
                 this.playTone(340, 'sine', 0.08, 0, 0.12);
                 this.playTone(440, 'triangle', 0.08, 0.05, 0.10);
@@ -641,6 +670,7 @@
          * 2. OFFICIAL 108-CARD UNO DECK GENERATOR & SHUFFLER
          ********************************************************************/
         const COLORS = ['red', 'yellow', 'green', 'blue'];
+        const NUMBER_VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
         const COLOR_META = {
             red:    { hex: '#ef4444', dark: '#991b1b', glow: 'rgba(239, 68, 68, 0.55)', name: 'Merah' },
             yellow: { hex: '#facc15', dark: '#854d0e', glow: 'rgba(250, 204, 21, 0.55)', name: 'Kuning' },
@@ -684,6 +714,10 @@
             return copy;
         }
 
+        function isNumberCard(card) {
+            return card && NUMBER_VALUES.includes(card.value);
+        }
+
         function getCardSymbol(val) {
             if (val === 'skip') return '⊘';
             if (val === 'reverse') return '⇄';
@@ -712,6 +746,7 @@
             botTotalPlayers: 4,
             passTotalPlayers: 3,
             rules: {
+                multiDrop: true,
                 stacking: true,
                 unoPenalty: true
             },
@@ -724,7 +759,9 @@
             direction: 1, // 1 = Clockwise, -1 = Counter-Clockwise
             drawStack: 0, // Accumulated +2 / +4 penalty
             hasDrawnThisTurn: false,
+            drawnCardId: null,
             pendingWildCardId: null,
+            pendingComboCards: [], // Ordered list of cards for Multi-Card Same Number Combo
             vulnerableUnoPlayerId: null, // Player who currently has 1 card and forgot to press UNO!
             winner: null,
             actionLog: 'Selamat datang di UNO! Arena',
@@ -744,11 +781,11 @@
         };
 
         /********************************************************************
-         * 4. CORE UNO RULES & LEGAL MOVE VALIDATION
+         * 4. CORE UNO RULES, LEGAL MOVE & ACCURATE UNO SHOUT VALIDATION
          ********************************************************************/
         function isCardPlayable(card, gameState = state) {
             if (!card) return false;
-            // If there is an active draw penalty stack (+2 or +4)
+            // 1. If there is an active draw penalty stack (+2 or +4)
             if (gameState.drawStack > 0) {
                 if (!gameState.rules.stacking) return false;
                 if (gameState.activeValue === '+2') {
@@ -759,11 +796,58 @@
                 }
                 return false;
             }
-            // Normal turn: Wilds are always playable
+            // 2. Normal turn: Wilds are always playable
             if (card.color === 'wild') return true;
-            // Match active color or match active value/symbol
+            // 3. Match active color or match active value/symbol
             if (card.color === gameState.activeColor) return true;
             if (card.value === gameState.activeValue) return true;
+            return false;
+        }
+
+        /**
+         * Returns all number cards in `hand` that share the same number as `card`,
+         * when `multiDrop` rule is enabled and `card` is a playable number card.
+         */
+        function getSameNumberComboGroup(hand, card, gameState = state) {
+            if (!gameState.rules.multiDrop) return [card];
+            if (!isNumberCard(card)) return [card];
+            const matching = hand.filter(c => c.value === card.value);
+            if (matching.length <= 1) return [card];
+            // Put the clicked card first (it validates the match against the table),
+            // and remaining matching number cards after it.
+            const others = matching.filter(c => c.id !== card.id);
+            return [card, ...others];
+        }
+
+        /**
+         * Strictly checks whether a player is legally eligible to press "TERIAK UNO!":
+         * - Case A: The player ALREADY has exactly 1 card in hand and hasn't shouted UNO yet.
+         * - Case B: It is currently the player's turn, they haven't shouted UNO yet, and they have
+         *   a legal move (single card or multi-card same-number combo) that will leave them with
+         *   EXACTLY 1 card in hand. (Never shows when forced to draw penalty with 2 unplayable cards!)
+         */
+        function canPlayerCallUnoNow(player, isPlayersTurn, gameState = state) {
+            if (!player || player.saidUno || !gameState.rules.unoPenalty) return false;
+            if (player.hand.length === 1) return true;
+            if (!isPlayersTurn) return false;
+
+            const playable = player.hand.filter(c => isCardPlayable(c, gameState));
+            if (playable.length === 0) return false;
+
+            // If player has 2 cards and at least 1 is legally playable -> playing 1 card leaves 1 card!
+            if (player.hand.length === 2) return true;
+
+            // If multiDrop is enabled and playing a same-number combo leaves exactly 1 card in hand!
+            if (gameState.rules.multiDrop && player.hand.length > 2) {
+                for (const c of playable) {
+                    if (isNumberCard(c)) {
+                        const group = getSameNumberComboGroup(player.hand, c, gameState);
+                        if (player.hand.length - group.length === 1) {
+                            return true;
+                        }
+                    }
+                }
+            }
             return false;
         }
 
@@ -778,7 +862,6 @@
         function replenishDeckIfNeeded() {
             if (state.deck.length > 0) return;
             if (state.discardPile.length <= 1) {
-                // Emergency extra deck if all 108 cards are held in hands
                 state.deck = createOfficialDeck();
                 return;
             }
@@ -818,6 +901,7 @@
             clearTimeout(state.botTimer);
             state.mode = mode;
             state.status = 'playing';
+            state.rules.multiDrop = document.getElementById('ruleMultiDrop').checked;
             state.rules.stacking = document.getElementById('ruleStacking').checked;
             state.rules.unoPenalty = document.getElementById('ruleUnoPenalty').checked;
 
@@ -828,7 +912,9 @@
             state.direction = 1;
             state.drawStack = 0;
             state.hasDrawnThisTurn = false;
+            state.drawnCardId = null;
             state.pendingWildCardId = null;
+            state.pendingComboCards = [];
             state.vulnerableUnoPlayerId = null;
             state.winner = null;
 
@@ -859,7 +945,6 @@
                     });
                 }
             } else if (mode === 'online') {
-                // Built by Host from onlineWaitingRoom
                 state.players = buildOnlinePlayersList();
             }
 
@@ -868,7 +953,7 @@
                 drawCardsForPlayer(p, 7);
             }
 
-            // Flip first starting card (ensure it's a number card for a clean start)
+            // Official UNO Rule: First card cannot be Wild/+4 (reshuffle back into deck)
             let firstCard = state.deck.pop();
             while (firstCard.color === 'wild' || ['skip', 'reverse', '+2'].includes(firstCard.value)) {
                 state.deck.unshift(firstCard);
@@ -883,6 +968,7 @@
             // Hide modals and show HUD
             document.getElementById('lobbyModal').classList.add('hidden');
             document.getElementById('winnerModal').classList.add('hidden');
+            document.getElementById('comboModal').classList.add('hidden');
             document.getElementById('gameplayHud').classList.remove('hidden');
 
             const modeBadge = document.getElementById('badgeGameMode');
@@ -910,7 +996,7 @@
         }
 
         /********************************************************************
-         * 6. EXECUTING CARD PLAYS, DRAWS, AND UNO SHOUTS
+         * 6. EXECUTING CARD PLAYS, MULTI-CARD COMBOS, DRAWS, AND UNO SHOUTS
          ********************************************************************/
         function handleLocalCardClick(cardId) {
             if (!isMyTurn()) {
@@ -924,22 +1010,91 @@
 
             if (!isCardPlayable(card)) {
                 sfx.penaltyHit();
-                showToast('❌ Kartu itu tidak cocok dengan warna/simbol aktif!', 'warn');
+                if (state.drawStack > 0) {
+                    showToast(`❌ Sedang ada penalti +${state.drawStack}! Balas dengan kartu +2/+4 atau klik Ambil Penalti.`, 'warn');
+                } else {
+                    showToast('❌ Kartu itu tidak cocok dengan warna atau angka/simbol di meja!', 'warn');
+                }
                 return;
             }
 
-            // If it's a Wild card, open color picker modal first
+            // 1. If it's a Wild card, open color picker modal first
             if (card.color === 'wild') {
                 state.pendingWildCardId = card.id;
                 document.getElementById('wildModal').classList.remove('hidden');
                 return;
             }
 
-            submitMove({ type: 'PLAY_CARD', playerIndex: pIdx, cardId: card.id, chosenColor: card.color });
+            // 2. Check if player has multiple cards of this SAME NUMBER (Combo Multi-Drop!)
+            const comboGroup = getSameNumberComboGroup(player.hand, card);
+            if (comboGroup.length > 1) {
+                openComboModal(comboGroup);
+                return;
+            }
+
+            // 3. Otherwise play the single card immediately
+            submitMove({
+                type: 'PLAY_CARDS',
+                playerIndex: pIdx,
+                cardIds: [card.id],
+                chosenColor: card.color
+            });
+        }
+
+        function openComboModal(comboCards) {
+            state.pendingComboCards = [...comboCards];
+            renderComboModalPreview();
+            document.getElementById('comboModal').classList.remove('hidden');
+        }
+
+        function renderComboModalPreview() {
+            const cards = state.pendingComboCards;
+            if (!cards || cards.length === 0) return;
+            const numVal = cards[0].value;
+            document.getElementById('comboModalTitle').textContent = `Combo Angka ${numVal} (${cards.length} Kartu)`;
+            document.getElementById('comboCountBtnLabel').textContent = String(cards.length);
+
+            const container = document.getElementById('comboCardsPreview');
+            container.innerHTML = '';
+
+            cards.forEach((c, idx) => {
+                const isLast = idx === cards.length - 1;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex flex-col items-center gap-1';
+
+                const cardBtn = document.createElement('button');
+                cardBtn.type = 'button';
+                cardBtn.className = `w-16 h-24 rounded-xl bg-uno-${c.color} border-2 ${isLast ? 'border-amber-300 ring-2 ring-amber-400 scale-105' : 'border-white/80 opacity-90'} shadow-lg flex flex-col items-center justify-center relative transition hover:scale-105`;
+                cardBtn.title = idx === 0
+                    ? 'Kartu Pembuka (Cocok dengan meja)'
+                    : 'Klik untuk jadikan kartu paling atas (warna akhir)';
+
+                cardBtn.innerHTML = `
+                    <span class="font-display font-extrabold text-2xl text-white drop-shadow">${c.value}</span>
+                    <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-black/40 text-white mt-1">${COLOR_META[c.color]?.name || c.color}</span>
+                `;
+
+                // Allow user to click any secondary card in the combo to make it the final top card (controlling the final active color!)
+                if (idx > 0) {
+                    cardBtn.addEventListener('click', () => {
+                        const picked = state.pendingComboCards.splice(idx, 1)[0];
+                        state.pendingComboCards.push(picked);
+                        sfx.cardDraw();
+                        renderComboModalPreview();
+                    });
+                }
+
+                const badge = document.createElement('span');
+                badge.className = `text-[10px] font-bold ${idx === 0 ? 'text-emerald-300' : (isLast ? 'text-amber-300' : 'text-slate-400')}`;
+                badge.textContent = idx === 0 ? '1. Masuk Awal' : (isLast ? `${idx + 1}. Warna Akhir ★` : `Ke-${idx + 1}`);
+
+                wrapper.appendChild(cardBtn);
+                wrapper.appendChild(badge);
+                container.appendChild(wrapper);
+            });
         }
 
         function submitMove(action) {
-            // In Online client mode, send action to Host for authoritative execution
             if (state.mode === 'online' && !state.isHost) {
                 if (state.hostConn && state.hostConn.open) {
                     state.hostConn.send({ type: 'CLIENT_ACTION', action });
@@ -960,7 +1115,9 @@
 
             if (action.type === 'CALL_UNO') {
                 const caller = state.players[action.playerIndex];
-                if (!caller) return;
+                const isCallerTurn = action.playerIndex === state.turnIndex;
+                if (!canPlayerCallUnoNow(caller, isCallerTurn)) return;
+
                 caller.saidUno = true;
                 if (state.vulnerableUnoPlayerId === caller.id) {
                     state.vulnerableUnoPlayerId = null;
@@ -976,7 +1133,7 @@
             if (action.type === 'CATCH_UNO') {
                 const catcher = state.players[action.playerIndex];
                 const target = state.players.find(p => p.id === state.vulnerableUnoPlayerId);
-                if (target && catcher) {
+                if (target && catcher && target.id !== catcher.id) {
                     drawCardsForPlayer(state.players.indexOf(target), 2);
                     state.vulnerableUnoPlayerId = null;
                     sfx.penaltyHit();
@@ -992,27 +1149,52 @@
             if (action.playerIndex !== state.turnIndex) return;
             const player = state.players[state.turnIndex];
 
-            if (action.type === 'PLAY_CARD') {
-                const cardIdx = player.hand.findIndex(c => c.id === action.cardId);
-                if (cardIdx === -1) return;
-                const card = player.hand[cardIdx];
-                if (!isCardPlayable(card)) return;
+            // Support both legacy PLAY_CARD and new multi-card PLAY_CARDS
+            if (action.type === 'PLAY_CARD' || action.type === 'PLAY_CARDS') {
+                const rawIds = action.cardIds || (action.cardId ? [action.cardId] : []);
+                if (rawIds.length === 0) return;
 
-                // Remove from hand & push to discard pile
-                player.hand.splice(cardIdx, 1);
-                state.discardPile.push(card);
-                state.activeColor = card.color === 'wild' ? (action.chosenColor || 'red') : card.color;
-                state.activeValue = card.value;
+                // Validate first card in sequence is in hand and legally playable on the table
+                const firstCard = player.hand.find(c => c.id === rawIds[0]);
+                if (!firstCard || !isCardPlayable(firstCard)) return;
+
+                // Collect valid cards to play
+                const playedCards = [firstCard];
+                if (rawIds.length > 1 && state.rules.multiDrop && isNumberCard(firstCard)) {
+                    for (let i = 1; i < rawIds.length; i++) {
+                        const nextCard = player.hand.find(c => c.id === rawIds[i]);
+                        if (nextCard && nextCard.id !== firstCard.id && nextCard.value === firstCard.value && !playedCards.includes(nextCard)) {
+                            playedCards.push(nextCard);
+                        }
+                    }
+                }
+
+                // Clear any previous player's uncalled UNO vulnerability once next play happens
+                if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== player.id) {
+                    state.vulnerableUnoPlayerId = null;
+                }
+
+                // Remove all played cards from hand and push to discard pile in order
+                playedCards.forEach((c, idx) => {
+                    const cIdx = player.hand.findIndex(h => h.id === c.id);
+                    if (cIdx !== -1) player.hand.splice(cIdx, 1);
+                    state.discardPile.push(c);
+                    const flyColor = c.color === 'wild' ? (action.chosenColor || 'red') : c.color;
+                    setTimeout(() => {
+                        spawnCardFlyAnimation(action.playerIndex, c, flyColor);
+                    }, idx * 90);
+                });
+
+                const finalCard = playedCards[playedCards.length - 1];
+                state.activeColor = finalCard.color === 'wild' ? (action.chosenColor || 'red') : finalCard.color;
+                state.activeValue = finalCard.value;
                 state.hasDrawnThisTurn = false;
+                state.drawnCardId = null;
 
-                // Spawn flying card animation on Canvas
-                spawnCardFlyAnimation(action.playerIndex, card, state.activeColor);
-
-                // Check UNO status (1 card left)
+                // Check UNO status (Strictly when 1 card left!)
                 if (player.hand.length === 1) {
                     if (player.isBot) {
-                        // Bots automatically remember UNO 80% of the time; 20% chance human can catch them!
-                        if (Math.random() < 0.8 || !state.rules.unoPenalty) {
+                        if (Math.random() < 0.82 || !state.rules.unoPenalty) {
                             player.saidUno = true;
                             sfx.unoShout();
                             showToast(`🔔 ${player.name} teriak UNO!`, 'uno');
@@ -1025,6 +1207,9 @@
                     }
                 } else {
                     player.saidUno = false;
+                    if (state.vulnerableUnoPlayerId === player.id) {
+                        state.vulnerableUnoPlayerId = null;
+                    }
                 }
 
                 // Check Win Condition (0 cards left!)
@@ -1033,41 +1218,45 @@
                     return;
                 }
 
-                // Apply Special Card Effects
+                // Apply Card Effects & Sound
                 let steps = 1;
                 const total = state.players.length;
 
-                if (card.value === 'reverse') {
+                if (playedCards.length > 1) {
+                    sfx.comboPlay(playedCards.length);
+                    const cLabel = COLOR_META[state.activeColor]?.name || state.activeColor;
+                    state.actionLog = `⚡ COMBO! ${player.name} mengeluarkan ${playedCards.length} kartu angka ${finalCard.value} sekaligus! (Warna aktif: ${cLabel})`;
+                    showToast(`⚡ COMBO ${playedCards.length}× Angka ${finalCard.value}!`, 'info');
+                } else if (finalCard.value === 'reverse') {
                     sfx.actionSpecial();
                     if (total === 2) {
-                        // Official 2-player UNO rule: Reverse acts like Skip!
                         steps = 2;
                         state.actionLog = `⇄ ${player.name} mainkan Reverse! (Duel 2P: Lawan dilewati)`;
                     } else {
                         state.direction *= -1;
                         state.actionLog = `⇄ ${player.name} memutar arah permainan!`;
                     }
-                } else if (card.value === 'skip') {
+                } else if (finalCard.value === 'skip') {
                     sfx.actionSpecial();
                     steps = 2;
                     const skippedIdx = getNextPlayerIndex(state.turnIndex, state.direction, total, 1);
                     state.actionLog = `⊘ ${player.name} melewati giliran ${state.players[skippedIdx].name}!`;
-                } else if (card.value === '+2') {
+                } else if (finalCard.value === '+2') {
                     sfx.actionSpecial();
                     state.drawStack += 2;
                     state.actionLog = `💥 ${player.name} menyerang dengan +2! (Total penalti: +${state.drawStack})`;
-                } else if (card.value === '+4') {
+                } else if (finalCard.value === '+4') {
                     sfx.actionSpecial();
                     state.drawStack += 4;
                     const cLabel = COLOR_META[state.activeColor]?.name || state.activeColor;
                     state.actionLog = `🔥 ${player.name} keluarkan WILD +4 (${cLabel})! (Penalti: +${state.drawStack})`;
-                } else if (card.value === 'wild') {
+                } else if (finalCard.value === 'wild') {
                     sfx.actionSpecial();
                     const cLabel = COLOR_META[state.activeColor]?.name || state.activeColor;
                     state.actionLog = `🎨 ${player.name} ganti warna ke ${cLabel}!`;
                 } else {
                     sfx.cardPlay();
-                    state.actionLog = `${player.name} memainkan ${getCardTitle(card)}`;
+                    state.actionLog = `${player.name} memainkan ${getCardTitle(finalCard)}`;
                 }
 
                 const prevTurn = state.turnIndex;
@@ -1092,15 +1281,21 @@
             }
 
             if (action.type === 'DRAW_CARD') {
+                // Clear any previous player's uncalled UNO vulnerability once next play/draw happens
+                if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== player.id) {
+                    state.vulnerableUnoPlayerId = null;
+                }
+
                 // Case 1: Player must accept accumulated penalty stack (+2 / +4)
                 if (state.drawStack > 0) {
                     const count = state.drawStack;
                     drawCardsForPlayer(state.turnIndex, count);
                     sfx.penaltyHit();
                     state.actionLog = `📥 ${player.name} mengambil ${count} kartu penalti!`;
-                    showToast(`${player.name} mengambil +${count} kartu!`, 'warn');
+                    showToast(`${player.name} mengambil +${count} kartu penalti!`, 'warn');
                     state.drawStack = 0;
                     state.hasDrawnThisTurn = false;
+                    state.drawnCardId = null;
                     const prevTurn = state.turnIndex;
                     state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
                     checkPassAndPlayCurtain(prevTurn, state.turnIndex);
@@ -1118,16 +1313,17 @@
 
                 if (drawnCard && isCardPlayable(drawnCard)) {
                     state.hasDrawnThisTurn = true;
-                    state.actionLog = `${player.name} mengambil 1 kartu (Bisa langsung dimainkan atau disimpan)`;
+                    state.drawnCardId = drawnCard.id;
+                    state.actionLog = `${player.name} mengambil 1 kartu (Bisa dimainkan atau disimpan)`;
                     if (!player.isBot && state.turnIndex === getPerspectivePlayerIndex()) {
-                        showToast('✨ Kartu yang diambil cocok! Klik kartu untuk mainkan atau klik Simpan & Lewati.', 'info');
+                        showToast('✨ Kartu yang baru diambil cocok! Klik untuk mainkan atau klik Simpan & Lewati.', 'info');
                     }
                     broadcastOnlineState();
                     updateUI();
                     scheduleBotTurnIfNeeded();
                 } else {
-                    // Card cannot be played -> advance turn automatically
                     state.hasDrawnThisTurn = false;
+                    state.drawnCardId = null;
                     state.actionLog = `${player.name} mengambil 1 kartu dan melewati giliran.`;
                     const prevTurn = state.turnIndex;
                     state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
@@ -1142,6 +1338,7 @@
             if (action.type === 'PASS_TURN') {
                 if (!state.hasDrawnThisTurn) return;
                 state.hasDrawnThisTurn = false;
+                state.drawnCardId = null;
                 state.actionLog = `${player.name} menyimpan kartu dan melewati giliran.`;
                 const prevTurn = state.turnIndex;
                 state.turnIndex = getNextPlayerIndex(state.turnIndex, state.direction, state.players.length, 1);
@@ -1163,7 +1360,7 @@
         }
 
         /********************************************************************
-         * 7. SMART AI BOT ENGINE
+         * 7. SMART AI BOT ENGINE (Supports Same-Number Multi-Card Combo!)
          ********************************************************************/
         function scheduleBotTurnIfNeeded() {
             clearTimeout(state.botTimer);
@@ -1182,33 +1379,39 @@
             if (state.status !== 'playing' || state.turnIndex !== botIdx) return;
             const bot = state.players[botIdx];
 
-            // If someone forgot to say UNO, bot has a 55% chance to catch them!
-            if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== bot.id && Math.random() < 0.55) {
+            // If someone forgot to say UNO, bot has a 60% chance to catch them!
+            if (state.vulnerableUnoPlayerId && state.vulnerableUnoPlayerId !== bot.id && Math.random() < 0.6) {
                 executeAuthoritativeAction({ type: 'CATCH_UNO', playerIndex: botIdx });
             }
 
             const playableCards = bot.hand.filter(c => isCardPlayable(c));
             if (playableCards.length > 0) {
-                // Prioritize action/number cards before spending Wild/+4
+                // Prioritize multi-card combos first if enabled, then action/high-point cards before Wild/+4
                 playableCards.sort((a, b) => {
                     if (a.color === 'wild' && b.color !== 'wild') return 1;
                     if (a.color !== 'wild' && b.color === 'wild') return -1;
+                    const comboA = getSameNumberComboGroup(bot.hand, a).length;
+                    const comboB = getSameNumberComboGroup(bot.hand, b).length;
+                    if (comboB !== comboA) return comboB - comboA;
                     return b.score - a.score;
                 });
+
                 const chosen = playableCards[0];
-                let bestColor = chosen.color;
+                const comboGroup = getSameNumberComboGroup(bot.hand, chosen);
+                let bestColor = comboGroup[comboGroup.length - 1].color;
+
                 if (chosen.color === 'wild') {
-                    // Pick dominant color in bot's hand
                     const counts = { red: 0, yellow: 0, green: 0, blue: 0 };
                     bot.hand.forEach(c => {
                         if (counts[c.color] !== undefined) counts[c.color]++;
                     });
                     bestColor = Object.keys(counts).reduce((a, b) => counts[a] >= counts[b] ? a : b, 'red');
                 }
+
                 executeAuthoritativeAction({
-                    type: 'PLAY_CARD',
+                    type: 'PLAY_CARDS',
                     playerIndex: botIdx,
-                    cardId: chosen.id,
+                    cardIds: comboGroup.map(c => c.id),
                     chosenColor: bestColor
                 });
             } else {
@@ -1229,7 +1432,6 @@
             sfx.winFanfare();
             spawnConfettiBurst();
 
-            // Official UNO Scoring: Winner gets points from all opponents' remaining cards
             let winnerBonus = 0;
             const standings = state.players.map(p => {
                 const handPenalty = p.hand.reduce((sum, c) => sum + (c.score || 0), 0);
@@ -1406,6 +1608,7 @@
                 const s = data.snapshot;
                 state.mode = 'online';
                 state.status = s.status;
+                state.rules = s.rules || state.rules;
                 state.players = s.players;
                 state.discardPile = s.discardPile;
                 state.deck = new Array(s.deckCount).fill({});
@@ -1492,6 +1695,7 @@
                 if (c.conn && c.conn.open) {
                     const snapshot = {
                         status: state.status,
+                        rules: state.rules,
                         players: state.players,
                         discardPile: state.discardPile.slice(-4),
                         deckCount: state.deck.length,
@@ -1576,8 +1780,8 @@
                 btnPass.classList.add('hidden');
             }
 
-            // Show "TERIAK UNO!" when player has 1 or 2 cards and hasn't shouted yet
-            if (localPlayer && localPlayer.hand.length <= 2 && localPlayer.hand.length >= 1 && !localPlayer.saidUno) {
+            // FIXED BUG: Strictly show "TERIAK UNO!" ONLY when player has 1 card left OR has a playable move on their turn that leaves 1 card!
+            if (canPlayerCallUnoNow(localPlayer, myTurn)) {
                 btnCallUno.classList.remove('hidden');
             } else {
                 btnCallUno.classList.add('hidden');
@@ -1595,10 +1799,16 @@
             const playableCount = myTurn ? localPlayer.hand.filter(c => isCardPlayable(c)).length : 0;
             const hintBadge = document.getElementById('playableHintBadge');
             if (myTurn) {
-                hintBadge.textContent = playableCount > 0 ? `${playableCount} kartu bisa dimainkan` : 'Ambil kartu dari dek';
-                hintBadge.className = playableCount > 0
-                    ? 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
-                    : 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30';
+                if (playableCount > 0) {
+                    hintBadge.textContent = `${playableCount} kartu bisa dimainkan`;
+                    hintBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30';
+                } else if (state.drawStack > 0) {
+                    hintBadge.textContent = `Tidak ada kartu penangkal — klik Ambil Penalti (+${state.drawStack})`;
+                    hintBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-400/30';
+                } else {
+                    hintBadge.textContent = 'Ambil kartu dari dek';
+                    hintBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30';
+                }
             } else {
                 hintBadge.textContent = 'Menunggu lawan...';
                 hintBadge.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-white/10';
@@ -1611,21 +1821,41 @@
             const container = document.getElementById('playerHandContainer');
             container.innerHTML = '';
 
+            // Count occurrences of each number value in hand for Combo badges
+            const numberCounts = {};
+            if (state.rules.multiDrop) {
+                hand.forEach(c => {
+                    if (isNumberCard(c)) {
+                        numberCounts[c.value] = (numberCounts[c.value] || 0) + 1;
+                    }
+                });
+            }
+
             hand.forEach((card, idx) => {
                 const canPlay = myTurn && isCardPlayable(card);
+                const comboTotal = (canPlay && isNumberCard(card) && state.rules.multiDrop) ? (numberCounts[card.value] || 1) : 1;
+                const isCombo = comboTotal > 1;
+
                 const cardEl = document.createElement('button');
                 cardEl.type = 'button';
                 const bgClass = `bg-uno-${card.color}`;
                 const textClass = `text-uno-${card.color}`;
                 const sym = getCardSymbol(card.value);
 
-                cardEl.className = `uno-card-dom ${bgClass} ${canPlay ? 'playable' : 'unplayable'}`;
+                cardEl.className = `uno-card-dom ${bgClass} ${canPlay ? 'playable' : 'unplayable'} ${isCombo ? 'combo-ready' : ''}`;
                 cardEl.style.marginLeft = idx === 0 ? '0px' : (hand.length > 9 ? '-22px' : '-10px');
                 cardEl.style.zIndex = String(idx + 1);
-                cardEl.title = getCardTitle(card);
+                cardEl.title = isCombo
+                    ? `${getCardTitle(card)} — Klik untuk Combo ×${comboTotal} kartu angka ${card.value}!`
+                    : getCardTitle(card);
+
+                const comboBadgeHtml = isCombo
+                    ? `<span class="absolute top-1.5 right-1.5 z-20 px-1.5 py-0.5 rounded-md bg-sky-500 text-slate-950 font-display font-extrabold text-[10px] shadow-md border border-white">×${comboTotal}</span>`
+                    : '';
 
                 cardEl.innerHTML = `
                     <div class="card-oval"></div>
+                    ${comboBadgeHtml}
                     <span class="absolute top-1.5 left-2 font-display font-bold text-xs sm:text-sm text-white drop-shadow">${sym}</span>
                     <span class="relative z-10 font-display font-extrabold text-2xl sm:text-3xl ${textClass} drop-shadow-sm">${sym}</span>
                     <span class="absolute bottom-1.5 right-2 font-display font-bold text-xs sm:text-sm text-white drop-shadow rotate-180">${sym}</span>
@@ -1652,7 +1882,6 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Allow clicking directly on the Canvas Draw Pile to draw a card!
         canvas.addEventListener('pointerdown', (e) => {
             if (state.status !== 'playing' || !isMyTurn()) return;
             const rect = canvas.getBoundingClientRect();
@@ -1670,7 +1899,6 @@
             const total = state.players.length;
             const seats = [];
 
-            // Seat positions around top/left/right of table
             const layouts = {
                 2: [{ x: w * 0.5, y: Math.max(92, h * 0.16), pos: 'top' }],
                 3: [
@@ -1723,7 +1951,6 @@
                 card: { ...card, displayColor: chosenColor || card.color }
             });
 
-            // Spawn color burst particles at center discard pile
             const hex = COLOR_META[chosenColor || card.color]?.hex || '#ffffff';
             for (let i = 0; i < 18; i++) {
                 const angle = (Math.PI * 2 * i) / 18;
@@ -1794,12 +2021,10 @@
             const cKey = activeColorOverride || card.displayColor || card.color || 'red';
             const meta = COLOR_META[cKey] || COLOR_META.red;
 
-            // Card shadow
             ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
             ctx.shadowBlur = 16;
             ctx.shadowOffsetY = 6;
 
-            // Card base
             drawRoundedRect(ctx, x, y, w, h, 14);
             ctx.fillStyle = meta.hex;
             ctx.fill();
@@ -1810,7 +2035,6 @@
             ctx.shadowBlur = 0;
             ctx.shadowOffsetY = 0;
 
-            // Inner white angled oval
             ctx.save();
             ctx.translate(x + w / 2, y + h / 2);
             ctx.rotate(-0.45);
@@ -1820,7 +2044,6 @@
             ctx.fill();
             ctx.restore();
 
-            // Center & corner symbols
             const sym = getCardSymbol(card.value);
             ctx.fillStyle = meta.dark;
             ctx.font = `800 ${Math.round(w * 0.36)}px Fredoka, sans-serif`;
@@ -1847,7 +2070,6 @@
             ctx.strokeStyle = highlight ? '#38bdf8' : '#f8fafc';
             ctx.stroke();
 
-            // Red oval inside back
             ctx.translate(x + w / 2, y + h / 2);
             ctx.rotate(-0.45);
             ctx.beginPath();
@@ -1902,7 +2124,6 @@
             ctx.arc(0, 0, 118, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Direction Arrowheads on Ring
             for (let a = 0; a < 4; a++) {
                 ctx.save();
                 ctx.rotate((Math.PI / 2) * a);
@@ -1928,7 +2149,6 @@
             const cardW = w < 640 ? 74 : 88;
             const cardH = w < 640 ? 110 : 130;
 
-            // Draw Pile (Left of center)
             const drawX = centerX - cardW - 14;
             const drawY = centerY - cardH / 2;
             deckHitbox = { x: drawX, y: drawY, w: cardW, h: cardH };
@@ -1936,13 +2156,11 @@
             drawCardBack(ctx, drawX - 4, drawY - 4, cardW, cardH, false);
             drawCardBack(ctx, drawX, drawY, cardW, cardH, highlightDraw);
 
-            // Deck Count Label under Draw Pile
             ctx.fillStyle = '#cbd5e1';
             ctx.font = '600 11px Inter, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(`DEK (${state.deck.length})`, drawX + cardW / 2, drawY + cardH + 16);
 
-            // Discard Pile (Right of center)
             const discardX = centerX + 14;
             const discardY = centerY - cardH / 2;
             const topCard = state.discardPile[state.discardPile.length - 1];
@@ -1964,7 +2182,6 @@
                     const isTurn = state.turnIndex === seat.playerIndex && state.status === 'playing';
 
                     ctx.save();
-                    // Seat Card Frame
                     const boxW = w < 640 ? 132 : 158;
                     const boxH = 66;
                     const bx = seat.x - boxW / 2;
@@ -1982,7 +2199,6 @@
                     ctx.stroke();
                     ctx.shadowBlur = 0;
 
-                    // Player Name & Card Count
                     ctx.fillStyle = isTurn ? '#fde047' : '#f8fafc';
                     ctx.font = '700 12px Inter, sans-serif';
                     ctx.textAlign = 'center';
@@ -1992,7 +2208,6 @@
                     ctx.font = '600 11px Inter, sans-serif';
                     ctx.fillText(`${p.hand.length} Kartu`, seat.x, by + 36);
 
-                    // Mini fanned card backs
                     const miniCount = Math.min(p.hand.length, 7);
                     const miniW = 16;
                     const miniH = 24;
@@ -2007,7 +2222,7 @@
                         ctx.stroke();
                     }
 
-                    // UNO Badge if opponent has 1 card
+                    // UNO Badge if opponent strictly has 1 card
                     if (p.hand.length === 1) {
                         drawRoundedRect(ctx, bx + boxW - 42, by - 10, 46, 20, 8);
                         ctx.fillStyle = '#ef4444';
@@ -2122,7 +2337,6 @@
         }
 
         function initEventListeners() {
-            // Mode Tabs in Lobby
             const tabs = {
                 bot: { btn: document.getElementById('tabModeBot'), panel: document.getElementById('panelModeBot') },
                 pass: { btn: document.getElementById('tabModePass'), panel: document.getElementById('panelModePass') },
@@ -2139,14 +2353,12 @@
                 });
             });
 
-            // Random Name Generator
             const funNames = ['Raja +4 🔥', 'Sultan UNO 👑', 'Master Skip ⚡', 'Kapten Wild 🎨', 'Ninja Kartu 🥷', 'Dewi Hoki 🍀'];
             document.getElementById('btnRandomName').addEventListener('click', () => {
                 const pick = funNames[Math.floor(Math.random() * funNames.length)];
                 document.getElementById('inputPlayerName').value = pick;
             });
 
-            // Bot Player Count Selection
             document.querySelectorAll('.bot-count-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     state.botTotalPlayers = parseInt(btn.getAttribute('data-bot-count'), 10);
@@ -2159,7 +2371,6 @@
                 });
             });
 
-            // Pass & Play Count Selection
             document.querySelectorAll('.pass-count-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     state.passTotalPlayers = parseInt(btn.getAttribute('data-pass-count'), 10);
@@ -2176,12 +2387,10 @@
                 });
             });
 
-            // Start Game Buttons
             document.getElementById('btnStartBotGame').addEventListener('click', () => startMatch('bot'));
             document.getElementById('btnStartPassGame').addEventListener('click', () => startMatch('pass'));
             document.getElementById('btnStartOnlineMatch').addEventListener('click', () => startMatch('online'));
 
-            // Online Room Controls
             document.getElementById('btnCreateRoom').addEventListener('click', createOnlineRoom);
             document.getElementById('btnJoinRoom').addEventListener('click', () => {
                 const code = document.getElementById('inputJoinRoomCode').value;
@@ -2199,7 +2408,6 @@
                 copyTextSafe(inviteUrl, '🔗 Link Invite berhasil disalin! Bagikan ke temanmu.');
             });
 
-            // Gameplay Action Buttons
             document.getElementById('btnDrawCard').addEventListener('click', () => {
                 if (!isMyTurn()) return;
                 submitMove({ type: 'DRAW_CARD', playerIndex: getPerspectivePlayerIndex() });
@@ -2213,6 +2421,36 @@
             });
             document.getElementById('btnCatchUno').addEventListener('click', () => {
                 submitMove({ type: 'CATCH_UNO', playerIndex: getPerspectivePlayerIndex() });
+            });
+
+            // Multi-Card Combo Modal Buttons
+            document.getElementById('btnPlaySingleCard').addEventListener('click', () => {
+                document.getElementById('comboModal').classList.add('hidden');
+                if (state.pendingComboCards.length > 0) {
+                    const first = state.pendingComboCards[0];
+                    state.pendingComboCards = [];
+                    submitMove({
+                        type: 'PLAY_CARDS',
+                        playerIndex: getPerspectivePlayerIndex(),
+                        cardIds: [first.id],
+                        chosenColor: first.color
+                    });
+                }
+            });
+
+            document.getElementById('btnPlayAllCombo').addEventListener('click', () => {
+                document.getElementById('comboModal').classList.add('hidden');
+                if (state.pendingComboCards.length > 0) {
+                    const cards = [...state.pendingComboCards];
+                    state.pendingComboCards = [];
+                    const lastCard = cards[cards.length - 1];
+                    submitMove({
+                        type: 'PLAY_CARDS',
+                        playerIndex: getPerspectivePlayerIndex(),
+                        cardIds: cards.map(c => c.id),
+                        chosenColor: lastCard.color
+                    });
+                }
             });
 
             // Hand Sorting Buttons
@@ -2241,22 +2479,20 @@
                         const cardId = state.pendingWildCardId;
                         state.pendingWildCardId = null;
                         submitMove({
-                            type: 'PLAY_CARD',
+                            type: 'PLAY_CARDS',
                             playerIndex: getPerspectivePlayerIndex(),
-                            cardId,
+                            cardIds: [cardId],
                             chosenColor
                         });
                     }
                 });
             });
 
-            // Pass & Play Curtain Reveal Button
             document.getElementById('btnRevealPassHand').addEventListener('click', () => {
                 document.getElementById('passCurtainModal').classList.add('hidden');
                 updateUI();
             });
 
-            // Navigation & Top Bar Buttons
             document.getElementById('btnBackHome').addEventListener('click', () => {
                 clearTimeout(state.botTimer);
                 document.getElementById('lobbyModal').classList.remove('hidden');
@@ -2269,7 +2505,6 @@
                 startMatch(state.mode);
             });
 
-            // Rules Modal
             document.getElementById('btnOpenRules').addEventListener('click', () => {
                 document.getElementById('rulesModal').classList.remove('hidden');
             });
@@ -2277,7 +2512,6 @@
                 document.getElementById('rulesModal').classList.add('hidden');
             });
 
-            // Sound Toggle
             document.getElementById('btnToggleSound').addEventListener('click', () => {
                 sfx.enabled = !sfx.enabled;
                 document.getElementById('iconSoundOn').classList.toggle('hidden', !sfx.enabled);
@@ -2285,7 +2519,6 @@
                 showToast(sfx.enabled ? '🔊 Suara Efek Aktif' : '🔇 Suara Efek Dimatikan', 'info');
             });
 
-            // Emoji Reaction Popover
             const emojiPop = document.getElementById('emojiPopover');
             document.getElementById('btnToggleEmoji').addEventListener('click', () => {
                 emojiPop.classList.toggle('hidden');
@@ -2298,7 +2531,6 @@
                 });
             });
 
-            // Auto-detect ?room=CODE from URL for 1-click GitHub Pages Friend Invite!
             try {
                 const params = new URLSearchParams(window.location.search);
                 const roomParam = params.get('room');
